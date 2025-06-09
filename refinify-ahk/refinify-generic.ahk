@@ -62,8 +62,8 @@ SYSTEM_PROMPT := "# You are a helpful assistant.`n"
     A_Clipboard := originalClipboard
 }
 
-; Ctrl+Alt+T paste refined message over the original message
-^!t::
+; Ctrl+Alt+R paste refined message over the original message
+^!r::
 {
     originalWin := WinGetID("A")
     originalClipboard := A_Clipboard

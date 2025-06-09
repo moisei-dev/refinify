@@ -243,8 +243,8 @@ function refinify.init()
         refineAndHandle("append")
     end)
 
-    -- Cmd+Alt+T: Replace original message with refined message (equivalent to ^!t::)
-    hs.hotkey.bind({"cmd", "alt"}, "T", function()
+    -- Cmd+Alt+R: Replace original message with refined message (equivalent to ^!r::)
+    hs.hotkey.bind({"cmd", "alt"}, "R", function()
         refineAndHandle("replace")
     end)
 

@@ -17,7 +17,7 @@ Refinify takes the text from the currently active edit box in any application—
 ## How to use Refinify
 - Place your cursor in the edit box with the text you want to refine. Slack, Gmail, etc.
 - Right before sending the message press one of the keystrokes below to refine your text.
-  - `Ctrl+Alt+T` (`⌘⌥T` on mac) will replace the original message with the refined message.
+  - `Ctrl+Alt+R` (`⌘⌥R` on mac) will replace the original message with the refined message.
   - `Ctrl+Alt+P` (`⌘⌥P` on mac) will append the refined message to the original message.
 Wait for 5 seconds and see the refined text appended to your original message.
 
@@ -28,7 +28,7 @@ Suppose you write a message in Slack:
 helo, all, do you aware abiout this isue happend yesterda,?
 ```
 
-After `Ctrl-Alt-T` your edit box will contain:
+After `Ctrl-Alt-R` your edit box will contain:
 ```txt
 Hello everyone, are you aware of the issue that happened yesterday?
 ```
