@@ -17,8 +17,8 @@ Refinify takes the text from the currently active edit box in any application—
 ## How to use Refinify
 - Place your cursor in the edit box with the text you want to refine. Slack, Gmail, etc.
 - Right before sending the message press one of the keystrokes below to refine your text.
-  - `Ctrl-Alt-T` (`Cmd-Alt-T` on mac) will replace the original message with the refined message.
-  - `Ctrl-Alt-R` (`Cmd-Alt-R` on mac) will append the refined message to the original message.
+  - `Ctrl+Alt+T` (`⌘⌥T` on mac) will replace the original message with the refined message.
+  - `Ctrl+Alt+P` (`⌘⌥P` on mac) will append the refined message to the original message.
 Wait for 5 seconds and see the refined text appended to your original message.
 
 ## Example
@@ -33,7 +33,7 @@ After `Ctrl-Alt-T` your edit box will contain:
 Hello everyone, are you aware of the issue that happened yesterday?
 ```
 
-After `Ctrl-Alt-R` your edit box will contain:
+After `Ctrl-Alt-P` your edit box will contain:
 ```txt
 helo, all, do you aware abiout this isue happend yesterda,?
 
@@ -121,11 +121,11 @@ brew install --cask hammerspoon
 4. **Start/Reload Hammerspoon**
    - Launch Hammerspoon from Applications
    - Allow accessibility permissions when prompted
-   - Reload configuration: `Cmd+Shift+R` in Hammerspoon console
+   - Reload configuration: `⌘⇧R` in Hammerspoon console
 
 5. **Usage**
    - Place cursor in any text field (Slack, Mail, TextEdit, etc.)
-   - Press `Cmd+Alt+R` (append) or `Cmd+Alt+T` (replace)
+   - Press `⌘⌥P` (append) or `⌘⌥T` (replace)
    - Wait for AI to refine your text
 
 #### Getting Updates
@@ -133,7 +133,7 @@ Since the file is linked to the git repository:
 ```bash
 cd ~/refinify
 git pull
-# Reload Hammerspoon: Cmd+Shift+R
+# Reload Hammerspoon: ⌘⇧R
 ```
 
 ## Troubleshooting

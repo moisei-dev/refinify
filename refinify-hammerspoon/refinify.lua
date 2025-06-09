@@ -215,7 +215,7 @@ local function refineAndHandle(mode)
             -- Prepare clipboard content based on mode
             local clipboardContent
             if mode == "append" then
-                -- Cmd+Alt+R: Append refined message to original
+                -- Cmd+Alt+P: Append refined message to original
                 clipboardContent = originalMessage .. "\n\n" .. refinedMessage .. "\n"
             else
                 -- Cmd+Alt+T: Replace with refined message
@@ -238,8 +238,8 @@ end
 
 -- Initialize keyboard shortcuts and setup (equivalent to AutoHotkey hotkey definitions)
 function refinify.init()
-    -- Cmd+Alt+R: Append refined message to original message (equivalent to ^!r::)
-    hs.hotkey.bind({"cmd", "alt"}, "R", function()
+    -- Cmd+Alt+P: Append refined message to original message (equivalent to ^!p::)
+    hs.hotkey.bind({"cmd", "alt"}, "P", function()
         refineAndHandle("append")
     end)
 
@@ -248,7 +248,7 @@ function refinify.init()
         refineAndHandle("replace")
     end)
 
-    hs.alert.show("Refinify loaded! Use Cmd+Alt+R (append) or Cmd+Alt+T (replace)")
+    hs.alert.show("Refinify loaded! Use Cmd+Alt+P (append) or Cmd+Alt+T (replace)")
 end
 
 -- Auto-initialize when module is loaded
