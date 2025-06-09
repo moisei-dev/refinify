@@ -39,20 +39,20 @@ global SYSTEM_PROMPT := "# You are a helpful assistant.`n"
 ; MsgBox refineMessage("Note: You'll need your own JFrog OpenAI token, if you don't have one." . FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss") . "?! ")
 ; EOF DEBUG
 
-; Ctrl+Alt+R replace refined message over the original message
-^!r::
+; Ctrl+Alt+P replace refined message over the original message
+^!p::
 {
-    pasteRefinedMessage()
+    replaceRefinedMessage()
 }
 
-; Ctrl+Alt+P append refined message to the original message
-^!p::
+; Ctrl+Alt+R append refined message to the original message
+^!r::
 {
     appendRefinedMessage()
 }
 
-; Ctrl+Alt+L show configuration dialog
-^!l::
+; Ctrl+Alt+K show configuration dialog
+^!k::
 {
     showConfigDialog()
 }
@@ -80,7 +80,7 @@ appendRefinedMessage() {
 }
 ; -----------------------------------------------------------------------------
 
-pasteRefinedMessage()
+replaceRefinedMessage()
 {
     originalWin := WinGetID("A")
     originalClipboard := A_Clipboard

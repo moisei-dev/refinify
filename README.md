@@ -1,11 +1,8 @@
 # Refinify
 
 **Refinify** refines your messages with AI before you send them.
-It's available for both Windows and macOS platfor5. **Usage**
-   - Place cursor in any text field (Slack, Mail, TextEdit, etc.)
-   - Press `⌘⌥P` (append) or `⌘⌥R` (replace)
-   - Press `⌘⌥L` for configuration dialog
-   - Wait for AI to refine your text
+It's available for both Windows and macOS platforms.
+
 ## Platforms
 
 - **Windows**: Uses AutoHotkey v2 for system-wide keyboard shortcuts
@@ -20,9 +17,9 @@ Refinify takes the text from the currently active edit box in any application—
 ## How to use Refinify
 - Place your cursor in the edit box with the text you want to refine. Slack, Gmail, etc.
 - Right before sending the message press one of the keystrokes below to refine your text.
-  - `Ctrl+Alt+R` (`⌘⌥R` on mac) will replace the original message with the refined message.
-  - `Ctrl+Alt+P` (`⌘⌥P` on mac) will append the refined message to the original message.
-  - `Ctrl+Alt+L` (`⌘⌥L` on mac) will show the configuration dialog to update API settings.
+  - `Ctrl+Alt+P` (`⌘⌥P` on mac) will replace the original message with the refined message.
+  - `Ctrl+Alt+R` (`⌘⌥R` on mac) will append the refined message to the original message.
+  - `Ctrl+Alt+K` (`⌘⌥K` on mac) will show the configuration dialog to update API settings.
 Wait for 5 seconds and see the refined text appended to your original message.
 
 ## Example
@@ -32,12 +29,12 @@ Suppose you write a message in Slack:
 helo, all, do you aware abiout this isue happend yesterda,?
 ```
 
-After `Ctrl-Alt-R` your edit box will contain:
+After `Ctrl-Alt-P` your edit box will contain:
 ```txt
 Hello everyone, are you aware of the issue that happened yesterday?
 ```
 
-After `Ctrl-Alt-P` your edit box will contain:
+After `Ctrl-Alt-R` your edit box will contain:
 ```txt
 helo, all, do you aware abiout this isue happend yesterda,?
 
@@ -76,7 +73,7 @@ Both platforms include pre-configured templates:
 
 #### Option 2: Use Configuration Dialog
 
-Both platforms include a configuration dialog accessible via **Ctrl+Alt+L** (Windows) or **⌘⌥L** (macOS).
+Both platforms include a configuration dialog accessible via **Ctrl+Alt+K** (Windows) or **⌘⌥K** (macOS).
 
 #### Option 3: Manual Configuration
 
@@ -183,7 +180,8 @@ brew install --cask hammerspoon
 
 5. **Usage**
    - Place cursor in any text field (Slack, Mail, TextEdit, etc.)
-   - Press `⌘⌥P` (append) or `⌘⌥T` (replace)
+   - Press `⌘⌥P` (replace) or `⌘⌥R` (append)
+   - Press `⌘⌥K` for configuration dialog
    - Wait for AI to refine your text
 
 #### Getting Updates
