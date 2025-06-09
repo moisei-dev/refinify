@@ -1,8 +1,11 @@
 # Refinify
 
 **Refinify** refines your messages with AI before you send them.
-It's available for both Windows and macOS platforms.
-
+It's available for both Windows and macOS platfor5. **Usage**
+   - Place cursor in any text field (Slack, Mail, TextEdit, etc.)
+   - Press `⌘⌥P` (append) or `⌘⌥R` (replace)
+   - Press `⌘⌥L` for configuration dialog
+   - Wait for AI to refine your text
 ## Platforms
 
 - **Windows**: Uses AutoHotkey v2 for system-wide keyboard shortcuts
@@ -19,6 +22,7 @@ Refinify takes the text from the currently active edit box in any application—
 - Right before sending the message press one of the keystrokes below to refine your text.
   - `Ctrl+Alt+R` (`⌘⌥R` on mac) will replace the original message with the refined message.
   - `Ctrl+Alt+P` (`⌘⌥P` on mac) will append the refined message to the original message.
+  - `Ctrl+Alt+L` (`⌘⌥L` on mac) will show the configuration dialog to update API settings.
 Wait for 5 seconds and see the refined text appended to your original message.
 
 ## Example
@@ -51,6 +55,60 @@ Hello everyone, are you aware of the issue that happened yesterday?
 - ✅ Visual feedback with notifications (macOS)
 - ✅ Error handling and user feedback
 - ✅ Easy updates via git pull (macOS)
+
+## Configuration
+
+Both platforms require an API key configuration file and provide configuration templates for easy setup.
+
+### API Key Configuration
+
+#### Option 1: Use Configuration Templates
+
+Both platforms include pre-configured templates:
+
+**For Azure OpenAI:**
+- Copy `.env-secrets.template` to `.env-secrets`
+- Fill in your Azure OpenAI credentials
+
+**For Standard OpenAI:**
+- Copy `.env-secrets-openai.template` to `.env-secrets`
+- Fill in your OpenAI API key
+
+#### Option 2: Use Configuration Dialog
+
+Both platforms include a configuration dialog accessible via **Ctrl+Alt+L** (Windows) or **⌘⌥L** (macOS).
+
+#### Option 3: Manual Configuration
+
+Create a `.env-secrets` file in the platform directory:
+
+**For Azure OpenAI (example):**
+```
+OPENAI_API_KEY=your-azure-openai-api-key
+OPENAI_ENDPOINT=https://your-resource.openai.azure.com
+OPENAI_API_VERSION=2025-01-01-preview
+OPENAI_MODEL=gpt-4o
+```
+
+**For Standard OpenAI:**
+```
+OPENAI_API_KEY=sk-your-openai-api-key
+OPENAI_ENDPOINT=https://api.openai.com
+OPENAI_MODEL=gpt-4o
+```
+
+### Configuration Parameters
+
+| Parameter | Description | Azure Example | OpenAI Example |
+|-----------|-------------|---------------|----------------|
+| `OPENAI_API_KEY` | Your API key | `abc123...` | `sk-abc123...` |
+| `OPENAI_ENDPOINT` | API endpoint URL | `https://my-resource.openai.azure.com` | `https://api.openai.com` |
+| `OPENAI_API_VERSION` | API version (Azure only) | `2025-01-01-preview` | _(leave empty)_ |
+| `OPENAI_MODEL` | Model to use | `gpt-4.1` | `gpt-4.1` |
+| `MAX_TOKENS` | Maximum response tokens | `800` | `800` |
+| `TEMPERATURE` | Response creativity (0-1) | `0.7` | `0.7` |
+
+**Security Note**: Never commit the `.env-secrets` file to version control. It's already included in `.gitignore`.
 
 ## Installation
 
@@ -158,8 +216,10 @@ refinify/
 │   ├── _JXON.ahk                      # JSON library for AutoHotkey
 │   ├── refinify-generic.ahk           # Core implementation
 │   ├── refinify.ahk                   # Main entry point
-│   └── .env-secrets.template          # API key template
+│   ├── .env-secrets.template          # Azure OpenAI template
+│   └── .env-secrets-openai.template   # Standard OpenAI template
 └── refinify-hammerspoon/              # macOS implementation
     ├── refinify.lua                   # Complete Hammerspoon implementation
-    └── .env-secrets.template          # API key template
+    ├── .env-secrets.template          # Azure OpenAI template
+    └── .env-secrets-openai.template   # Standard OpenAI template
 ```

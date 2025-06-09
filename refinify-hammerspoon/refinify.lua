@@ -236,6 +236,57 @@ local function refineAndHandle(mode)
     end)
 end
 
+-- Configuration dialog function (equivalent to showConfigDialog in AutoHotkey)
+function showConfigDialog()
+    -- Read current values
+    local currentApiKey = config.readAPIKey() or ""
+    local currentEndpoint = config.OPENAI_ENDPOINT
+    local currentApiVersion = config.OPENAI_API_VERSION
+
+    -- Create the dialog using hs.dialog
+    local button, results = hs.dialog.textPrompt(
+        "Refinify Configuration",
+        "Enter configuration values:",
+        {
+            currentApiKey,
+            currentEndpoint,
+            currentApiVersion
+        },
+        {
+            "API Key",
+            "Endpoint URL",
+            "API Version"
+        }
+    )
+
+    if button == "OK" then
+        local apiKey = results[1] or ""
+        local endpoint = results[2] or currentEndpoint
+        local apiVersion = results[3] or currentApiVersion
+
+        -- Save to .env-secrets file
+        local envFile = os.getenv("HOME") .. "/.hammerspoon/.env-secrets"
+        local file = io.open(envFile, "w")
+        if file then
+            file:write("OPENAI_API_KEY=" .. apiKey .. "\n")
+            file:close()
+
+            -- Update global variables
+            config.OPENAI_ENDPOINT = endpoint
+            config.OPENAI_API_VERSION = apiVersion
+
+            -- Print to stdout (equivalent to FileAppend to "*" in AutoHotkey)
+            print("API_KEY: " .. apiKey)
+            print("ENDPOINT_URL: " .. endpoint)
+            print("API_VERSION: " .. apiVersion)
+
+            hs.alert.show("Configuration saved successfully!")
+        else
+            hs.alert.show("Error: Could not save configuration file")
+        end
+    end
+end
+
 -- Initialize keyboard shortcuts and setup (equivalent to AutoHotkey hotkey definitions)
 function refinify.init()
     -- Cmd+Alt+P: Append refined message to original message (equivalent to ^!p::)
@@ -248,7 +299,12 @@ function refinify.init()
         refineAndHandle("replace")
     end)
 
-    hs.alert.show("Refinify loaded! Use Cmd+Alt+P (append) or Cmd+Alt+T (replace)")
+    -- Cmd+Alt+L: Show configuration dialog (equivalent to ^!l::)
+    hs.hotkey.bind({"cmd", "alt"}, "L", function()
+        showConfigDialog()
+    end)
+
+    hs.alert.show("Refinify loaded! Use Cmd+Alt+P (append) or Cmd+Alt+R (replace)")
 end
 
 -- Auto-initialize when module is loaded
