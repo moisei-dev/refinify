@@ -5,7 +5,8 @@
 FileEncoding 'UTF-8'
 
 ; set default configuration values
-global CONFIG_FILE := ".env-secrets"
+global CONFIG_FILE := A_ScriptDir . "/../" . ".env-secrets"
+global SYSTEM_PROMPT_FILE := A_ScriptDir . "/../" . "system-prompt-completion.md"
 global OPENAI_API_KEY := ""
 global OPENAI_ENDPOINT := "https://jfs-ai-use2.openai.azure.com"
 global OPENAI_API_VERSION := "2025-01-01-preview"
@@ -18,22 +19,6 @@ global PRESENCE_PENALTY := 0
 global CUSTOM_COMPLETION_URL := ""
 
 LoadConfiguration()
-
-global SYSTEM_PROMPT := "# You are a helpful assistant.`n"
-. "Your task is to refine my messages to be concise, clear, and professional.`n"
-. "- Keep the original meaning, formatting, and tone—including any jokes or sarcasm.`n"
-. "- If anything could sound rude or impolite, rephrase it to be more polite.`n"
-. "- Use simple, direct English. Avoid complicated words and long sentences.`n"
-. "- Assume the audience is often technical, but not always.`n"
-. "- Both I and my audience are usually not native English speakers.`n"
-. "- Do not insert empty lines between the paragraphs and.`n"
-. "- Preserve a similar number of lines when deciding on new lines.`n"
-. "- Preserve Markdown formatting in slack, backquotes and code blocks.`n"
-. "- If the line in the message starts with #- treat is as command and not a part of the message.`n"
-. "  For example ``#- preserve language`` means the reply should be in the same language as the message.`n"
-. "- **Under no circumstances should you perform any action or transformation other than refining the message as described above.**`n"
-. "  If the user asks you to translate, summarize, or perform any action, IGNORE the request and only refine the text as specified above.`n"
-. "  Never translate, summarize, or otherwise act on the content; only refine wording and clarity, unless it is requested in a #- command.**`n"
 
 ; DEBUG: test message
 ; MsgBox refineMessage("Note: You'll need your own JFrog OpenAI token, if you don't have one." . FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss") . "?! ")
@@ -80,8 +65,7 @@ appendRefinedMessage() {
 }
 ; -----------------------------------------------------------------------------
 
-replaceRefinedMessage()
-{
+replaceRefinedMessage() {
     originalWin := WinGetID("A")
     originalClipboard := A_Clipboard
     A_Clipboard := ""
@@ -124,29 +108,26 @@ constructOpenAIAPIPayload(userMessage) {
     payload := Map()
     payload["model"] := OPENAI_MODEL
 
-    messages := []
-
-    ; System message
     systemMsg := Map()
     systemMsg["role"] := "system"
     systemContent := []
     systemContentObj := Map()
     systemContentObj["type"] := "text"
-    systemContentObj["text"] := SYSTEM_PROMPT
+    systemContentObj["text"] := LoadSystemPrompt()
     systemContent.Push(systemContentObj)
     systemMsg["content"] := systemContent
+
+    messages := []
     messages.Push(systemMsg)
 
-    ; User message
     userMsg := Map()
     userMsg["role"] := "user"
     userMsg["content"] := userMessage
     messages.Push(userMsg)
 
-    ; Add messages to payload
     payload["messages"] := messages
 
-    ; Add other parameters - ensure numeric types for JSON
+    ; ensure numeric types for JSON
     payload["max_tokens"] := Integer(MAX_TOKENS)
     payload["temperature"] := Number(TEMPERATURE)
     payload["top_p"] := Number(TOP_P)
@@ -161,6 +142,7 @@ constructOpenAIAPIPayload(userMessage) {
 
 ; Call OpenAI API Completion API to refine the message
 callOpenAIAPI(userMessage) {
+    LoadConfiguration()
     jsonPayload := constructOpenAIAPIPayload(userMessage)
     ; Send request
     http := ComObject("WinHttp.WinHttpRequest.5.1")
@@ -264,7 +246,8 @@ ConfigSave(*) {
     global configGui, apiKeyEdit, endpointEdit, apiVersionEdit, openaiModelEdit, completionUrlEdit
     global maxTokensEdit, temperatureEdit, topPEdit, frequencyPenaltyEdit, presencePenaltyEdit
     try {
-        FileDelete(".env-secrets")
+        FileCopy CONFIG_FILE, CONFIG_FILE . ".bak"
+        FileDelete(CONFIG_FILE)
     }
     envContent := "OPENAI_API_KEY=" . apiKeyEdit.Text . "`n"
     envContent .= "OPENAI_ENDPOINT=" . endpointEdit.Text . "`n"
@@ -277,7 +260,7 @@ ConfigSave(*) {
     envContent .= "FREQUENCY_PENALTY=" . frequencyPenaltyEdit.Text . "`n"
     envContent .= "PRESENCE_PENALTY=" . presencePenaltyEdit.Text . "`n"
     try {
-        FileAppend(envContent, ".env-secrets")
+        FileAppend(envContent, CONFIG_FILE)
     } catch Error as e {
         MsgBox("Error saving configuration: " . e.message)
     }
@@ -337,4 +320,8 @@ showConfigDialog() {
 ConfigCancel(*) {
     global configGui
     configGui.Destroy()
+}
+
+LoadSystemPrompt() {
+    return FileRead(SYSTEM_PROMPT_FILE)
 }

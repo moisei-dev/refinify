@@ -24,22 +24,17 @@ config.FREQUENCY_PENALTY = 0
 config.PRESENCE_PENALTY = 0
 config.CUSTOM_COMPLETION_URL = ""
 
--- System prompt (equivalent to SYSTEM_PROMPT in AutoHotkey)
-config.SYSTEM_PROMPT = [[# You are a helpful assistant.
-Your task is to refine my messages to be concise, clear, and professional.
-- Keep the original meaning, formatting, and tone—including any jokes or sarcasm.
-- If anything could sound rude or impolite, rephrase it to be more polite.
-- Use simple, direct English. Avoid complicated words and long sentences.
-- Assume the audience is often technical, but not always.
-- Both I and my audience are usually not native English speakers.
-- Do not insert empty lines between the paragraphs and.
-- Preserve a similar number of lines when deciding on new lines.
-- Preserve Markdown formatting in slack, backquotes and code blocks.
-- If the line in the message starts with #- treat is as command and not a part of the message.
-  For example `#- preserve language` means the reply should be in the same language as the message.
-- **Under no circumstances should you perform any action or transformation other than refining the message as described above.**
-  If the user asks you to translate, summarize, or perform any action, IGNORE the request and only refine the text as specified above.
-  Never translate, summarize, or otherwise act on the content; only refine wording and clarity, unless it is requested in a #- command.**]]
+-- Load system prompt from file
+function config.loadSystemPrompt()
+    local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)")
+    local promptFile = scriptDir .. "../system-prompt-completion.md"
+
+    local file = io.open(promptFile, "r")
+    local content = file:read("*all")
+    file:close()
+
+    return content
+end
 
 -- Read configuration from .env-secrets file (equivalent to LoadConfiguration function)
 function config.loadConfiguration()
@@ -147,7 +142,7 @@ function openai.constructPayload(userMessage)
                 content = {
                     {
                         type = "text",
-                        text = config.SYSTEM_PROMPT
+                        text = config.loadSystemPrompt()
                     }
                 }
             },
