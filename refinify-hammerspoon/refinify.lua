@@ -38,7 +38,8 @@ end
 
 -- Read configuration from .env-secrets file (equivalent to LoadConfiguration function)
 function config.loadConfiguration()
-    local envFile = os.getenv("HOME") .. "/.hammerspoon/.env-secrets"
+    local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)")
+    local envFile = scriptDir .. "../.env-secrets"
     local file = io.open(envFile, "r")
     if not file then
         return
@@ -78,6 +79,26 @@ end
 -- Read API key from loaded configuration
 function config.readAPIKey()
     return config.loadConfiguration()
+end
+
+-- LoadConfiguration function (equivalent to Windows AutoHotkey version)
+-- Checks if config file exists and API key is not empty, otherwise shows config dialog
+function LoadConfiguration()
+    local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)")
+    local envFile = scriptDir .. "../.env-secrets"
+    local file = io.open(envFile, "r")
+    if file then
+        file:close()
+        local apiKey = config.readAPIKey()
+        if apiKey and apiKey ~= "" then
+            -- Configuration is valid, reload it
+            config.loadConfiguration()
+            return true
+        end
+    end
+    -- Configuration missing or invalid, show dialog
+    showConfigDialog()
+    return false
 end
 
 -- ============================================================================
@@ -211,6 +232,11 @@ end
 
 -- Main refinement function - equivalent to replaceRefinedMessage
 local function replaceRefinedMessage()
+    -- Check configuration first
+    if not LoadConfiguration() then
+        return
+    end
+
     -- Save original clipboard
     local originalClipboard = getClipboard()
 
@@ -258,6 +284,11 @@ end
 
 -- Main refinement function - equivalent to appendRefinedMessage
 local function appendRefinedMessage()
+    -- Check configuration first
+    if not LoadConfiguration() then
+        return
+    end
+
     -- Save original clipboard
     local originalClipboard = getClipboard()
 
@@ -313,9 +344,10 @@ function showConfigDialog()
     local button, result = hs.dialog.textPrompt("Refinify Configuration",
         "Enter your OpenAI API Key:", currentApiKey, "OK", "Cancel")
 
-    if button == "OK" and result then
+    if button == "OK" and result and result ~= "" then
         -- Save configuration to .env-secrets file (equivalent to ConfigSave)
-        local envFile = os.getenv("HOME") .. "/.hammerspoon/.env-secrets"
+        local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)")
+        local envFile = scriptDir .. "../.env-secrets"
         local file = io.open(envFile, "w")
         if file then
             local envContent = "OPENAI_API_KEY=" .. result .. "\n" ..
@@ -336,10 +368,13 @@ function showConfigDialog()
             config.readAPIKey()
 
             hs.alert.show("Configuration saved successfully!")
+            return true
         else
             hs.alert.show("Error: Could not save configuration file")
+            return false
         end
     end
+    return false
 end
 
 -- Initialize keyboard shortcuts and setup (equivalent to AutoHotkey hotkey definitions)
