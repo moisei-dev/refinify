@@ -235,7 +235,7 @@ readProperty(content, keyName, defaultValue := "") {
 }
 
 LoadConfiguration() {
-    if FileExist(CONFIG_FILE) {
+    if FileExist(CONFIG_FILE) && OPENAI_API_KEY != "" {
         ; Reload configuration from file just in case it was edited manually
         LoadConfigurationFromFile()
         return true
