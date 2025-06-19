@@ -18,8 +18,6 @@ global FREQUENCY_PENALTY := 0
 global PRESENCE_PENALTY := 0
 global CUSTOM_COMPLETION_URL := ""
 
-LoadConfiguration()
-
 ; DEBUG: test message
 ; MsgBox refineMessage("Note: You'll need your own JFrog OpenAI token, if you don't have one." . FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss") . "?! ")
 ; EOF DEBUG
