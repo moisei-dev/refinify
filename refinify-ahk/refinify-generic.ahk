@@ -224,6 +224,7 @@ readProperty(content, keyName, defaultValue := "") {
 LoadConfiguration() {
     global CONFIG_FILE, OPENAI_API_KEY, OPENAI_ENDPOINT, OPENAI_API_VERSION, OPENAI_MODEL, MAX_TOKENS, TEMPERATURE, TOP_P, FREQUENCY_PENALTY, PRESENCE_PENALTY, CUSTOM_COMPLETION_URL
     if !FileExist(CONFIG_FILE) {
+        showConfigDialog()
         return
     }
     content := FileRead(CONFIG_FILE)
