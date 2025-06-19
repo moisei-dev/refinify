@@ -18,6 +18,8 @@ global FREQUENCY_PENALTY := 0
 global PRESENCE_PENALTY := 0
 global CUSTOM_COMPLETION_URL := ""
 
+; LoadConfiguration()
+
 ; DEBUG: test message
 ; MsgBox refineMessage("Note: You'll need your own JFrog OpenAI token, if you don't have one." . FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss") . "?! ")
 ; EOF DEBUG
@@ -25,22 +27,37 @@ global CUSTOM_COMPLETION_URL := ""
 ; Ctrl+Alt+P replace refined message over the original message
 ^!p::
 {
-    replaceRefinedMessage()
+    try {
+        if (LoadConfiguration()) {
+            replaceRefinedMessage()
+        }
+    } catch Error as e {
+        MsgBox e.message
+    }
 }
 
 ; Ctrl+Alt+R append refined message to the original message
 ^!r::
 {
-    appendRefinedMessage()
+    try {
+        if (LoadConfiguration()) {
+            appendRefinedMessage()
+        }
+    } catch Error as e {
+        MsgBox e.message
+    }
 }
 
 ; Ctrl+Alt+K show configuration dialog
 ^!k::
 {
-    showConfigDialog()
+    try {
+        showConfigDialog()
+    } catch Error as e {
+        MsgBox e.message
+    }
 }
 
-; -----------------------------------------------------------------------------
 appendRefinedMessage() {
     originalWin := WinGetID("A")
     originalClipboard := A_Clipboard
@@ -48,8 +65,7 @@ appendRefinedMessage() {
     SendInput "^a"
     SendInput "^c"
     if !ClipWait(2) {
-        MsgBox "The attempt to copy text onto the clipboard failed."
-        return
+        throw Error("The attempt to copy text onto the clipboard failed.")
     }
     originalMessage := A_Clipboard
     refinedMessage := refineMessage(originalMessage)
@@ -61,7 +77,6 @@ appendRefinedMessage() {
     Sleep 100
     A_Clipboard := originalClipboard
 }
-; -----------------------------------------------------------------------------
 
 replaceRefinedMessage() {
     originalWin := WinGetID("A")
@@ -70,8 +85,7 @@ replaceRefinedMessage() {
     SendInput "^a"
     SendInput "^c"
     if !ClipWait(2) {
-        MsgBox "The attempt to copy text onto the clipboard failed."
-        return
+        throw Error("The attempt to copy text onto the clipboard failed.")
     }
     originalMessage := A_Clipboard
     refinedMessage := refineMessage(originalMessage)
@@ -83,7 +97,6 @@ replaceRefinedMessage() {
     Sleep 100
     A_Clipboard := originalClipboard
 }
-; -----------------------------------------------------------------------------
 
 refineMessage(userMessage) {
     try {
@@ -92,12 +105,13 @@ refineMessage(userMessage) {
         cleanMsg := cleanMessage(refinedContent)
         return cleanMsg
     } catch Error as e {
-        return "Request failed: " . e.message . "`n"
-        . "Please check your configuration and ensure the OpenAI API is accessible."
-        . "`nOPENAI_API_KEY: " . OPENAI_API_KEY
-        . "`nOPENAI_ENDPOINT: " . OPENAI_ENDPOINT
-        . "`nOPENAI_API_VERSION: " . OPENAI_API_VERSION
-        . "`nOPENAI_MODEL: " . OPENAI_MODEL
+        throw Error("AI request failed: " . e.message . "`n"
+        . "`n" . "Please check your configuration and ensure the OpenAI API is accessible."
+        . "`n" . "OPENAI_API_KEY: " . (StrLen(OPENAI_API_KEY) > 2 ? SubStr(OPENAI_API_KEY, 1, 1) . "xxx" . SubStr(OPENAI_API_KEY, -1) : OPENAI_API_KEY)
+        . "`n" . "OPENAI_ENDPOINT: " . OPENAI_ENDPOINT
+        . "`n" . "OPENAI_API_VERSION: " . OPENAI_API_VERSION
+        . "`n" . "OPENAI_MODEL: " . OPENAI_MODEL
+        )
     }
 }
 
@@ -140,7 +154,6 @@ constructOpenAIAPIPayload(userMessage) {
 
 ; Call OpenAI API Completion API to refine the message
 callOpenAIAPI(userMessage) {
-    LoadConfiguration()
     jsonPayload := constructOpenAIAPIPayload(userMessage)
     ; Send request
     http := ComObject("WinHttp.WinHttpRequest.5.1")
@@ -220,13 +233,23 @@ readProperty(content, keyName, defaultValue := "") {
     }
     return defaultValue
 }
-; -----------------------------------------------------------------------------
+
 LoadConfiguration() {
-    global CONFIG_FILE, OPENAI_API_KEY, OPENAI_ENDPOINT, OPENAI_API_VERSION, OPENAI_MODEL, MAX_TOKENS, TEMPERATURE, TOP_P, FREQUENCY_PENALTY, PRESENCE_PENALTY, CUSTOM_COMPLETION_URL
-    if !FileExist(CONFIG_FILE) {
-        showConfigDialog()
-        return
+    if FileExist(CONFIG_FILE) {
+        ; Reload configuration from file just in case it was edited manually
+        LoadConfigurationFromFile()
+        return true
     }
+    showConfigDialog()
+    return false
+}
+
+LoadSystemPrompt() {
+    return FileRead(SYSTEM_PROMPT_FILE)
+}
+
+LoadConfigurationFromFile() {
+    global OPENAI_API_KEY, OPENAI_ENDPOINT, OPENAI_API_VERSION, OPENAI_MODEL, MAX_TOKENS, TEMPERATURE, TOP_P, FREQUENCY_PENALTY, PRESENCE_PENALTY, CUSTOM_COMPLETION_URL
     content := FileRead(CONFIG_FILE)
     OPENAI_API_KEY := readProperty(content, "OPENAI_API_KEY", OPENAI_API_KEY)
     OPENAI_ENDPOINT := readProperty(content, "OPENAI_ENDPOINT", OPENAI_ENDPOINT)
@@ -239,39 +262,13 @@ LoadConfiguration() {
     PRESENCE_PENALTY := readProperty(content, "PRESENCE_PENALTY", PRESENCE_PENALTY)
 }
 
-; -----------------------------------------------------------------------------
-; Save configuration function (moved outside for proper scoping)
-ConfigSave(*) {
-    global configGui, apiKeyEdit, endpointEdit, apiVersionEdit, openaiModelEdit, completionUrlEdit
-    global maxTokensEdit, temperatureEdit, topPEdit, frequencyPenaltyEdit, presencePenaltyEdit
-    try {
-        FileCopy CONFIG_FILE, CONFIG_FILE . ".bak"
-        FileDelete(CONFIG_FILE)
-    }
-    envContent := "OPENAI_API_KEY=" . apiKeyEdit.Text . "`n"
-    envContent .= "OPENAI_ENDPOINT=" . endpointEdit.Text . "`n"
-    envContent .= "OPENAI_API_VERSION=" . apiVersionEdit.Text . "`n"
-    envContent .= "OPENAI_MODEL=" . openaiModelEdit.Text . "`n"
-    envContent .= "CUSTOM_COMPLETION_URL=" . completionUrlEdit.Text . "`n"
-    envContent .= "MAX_TOKENS=" . maxTokensEdit.Text . "`n"
-    envContent .= "TEMPERATURE=" . temperatureEdit.Text . "`n"
-    envContent .= "TOP_P=" . topPEdit.Text . "`n"
-    envContent .= "FREQUENCY_PENALTY=" . frequencyPenaltyEdit.Text . "`n"
-    envContent .= "PRESENCE_PENALTY=" . presencePenaltyEdit.Text . "`n"
-    try {
-        FileAppend(envContent, CONFIG_FILE)
-    } catch Error as e {
-        MsgBox("Error saving configuration: " . e.message)
-    }
-    configGui.Destroy()
-}
-
 ; Configuration dialog function
 showConfigDialog() {
     global CONFIG_FILE, OPENAI_API_KEY, OPENAI_ENDPOINT, OPENAI_API_VERSION, OPENAI_MODEL, MAX_TOKENS, TEMPERATURE, TOP_P, FREQUENCY_PENALTY, PRESENCE_PENALTY, CUSTOM_COMPLETION_URL
-    ; Create GUI
     global configGui := Gui("+Resize", "Refinify Configuration")
     configGui.SetFont("s10")
+    configGui.OnEvent("Close", ConfigCancel)
+
     ; Add controls with proper label positioning (labels above edit controls)
     configGui.Add("Text", "x20 y20", "[Mandatory] API Key:")
     global apiKeyEdit := configGui.Add("Edit", "x20 y40 w400 h20 Password", OPENAI_API_KEY)
@@ -305,22 +302,39 @@ showConfigDialog() {
     configGui.Add("Text", "x20 y575", "Presence Penalty:")
     global presencePenaltyEdit := configGui.Add("Edit", "x20 y595 w400 h20", Format("{:.1f}", PRESENCE_PENALTY))
 
-    ; Add buttons
     saveBtn := configGui.Add("Button", "x20 y630 w80 h30", "SAVE")
     saveBtn.OnEvent("Click", ConfigSave)
-    ; Cancel button
     cancelBtn := configGui.Add("Button", "x120 y630 w80 h30", "CANCEL")
     cancelBtn.OnEvent("Click", ConfigCancel)
-    ; Show the dialog with proper size
+
     configGui.Show("w450 h700")
 }
 
-; Cancel configuration function (moved outside for proper scoping)
-ConfigCancel(*) {
+ConfigSave(*) {
     global configGui
+    try {
+        FileAppend CONFIG_FILE, CONFIG_FILE . ".bak"
+        FileDelete CONFIG_FILE
+    }
+    global apiKeyEdit, endpointEdit, apiVersionEdit, openaiModelEdit, completionUrlEdit, maxTokensEdit, temperatureEdit, topPEdit, frequencyPenaltyEdit, presencePenaltyEdit
+    envContent := "OPENAI_API_KEY=" . apiKeyEdit.Text . "`n"
+    envContent .= "OPENAI_ENDPOINT=" . endpointEdit.Text . "`n"
+    envContent .= "OPENAI_API_VERSION=" . apiVersionEdit.Text . "`n"
+    envContent .= "OPENAI_MODEL=" . openaiModelEdit.Text . "`n"
+    envContent .= "CUSTOM_COMPLETION_URL=" . completionUrlEdit.Text . "`n"
+    envContent .= "MAX_TOKENS=" . maxTokensEdit.Text . "`n"
+    envContent .= "TEMPERATURE=" . temperatureEdit.Text . "`n"
+    envContent .= "TOP_P=" . topPEdit.Text . "`n"
+    envContent .= "FREQUENCY_PENALTY=" . frequencyPenaltyEdit.Text . "`n"
+    envContent .= "PRESENCE_PENALTY=" . presencePenaltyEdit.Text . "`n"
+    try {
+        FileAppend envContent, CONFIG_FILE
+        LoadConfigurationFromFile()
+    }
     configGui.Destroy()
 }
 
-LoadSystemPrompt() {
-    return FileRead(SYSTEM_PROMPT_FILE)
+ConfigCancel(*) {
+    global configGui
+    configGui.Destroy()
 }
