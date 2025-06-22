@@ -70,10 +70,16 @@ Choose your platform for detailed installation instructions:
 2. **Configure API Key**
    Create `.env-secrets` file in `refinify-ahk/` directory:
    ```ini
-   OPENAI_API_KEY=your_openai_api_key_here_without_quotes
+   OPENAI_API_KEY=your_openai_api_key_here_without_quotes   
    ```
 
-3. **Run Refinify**
+3. **OpenAI endpoint**
+	By default in use Azure OpenAI, to use OpenAI, define in .env-secret:
+   ```ini
+	OPENAI_ENDPOINT=https://api.openai.com/v1/chat/completions
+   ```
+
+4. **Run Refinify**
    - Browse to `refinify-ahk/` directory in Windows Explorer
    - Double-click `refinify.ahk` file
    - Notice the green "H" icon in the system tray (script is running)
