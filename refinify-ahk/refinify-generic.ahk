@@ -9,9 +9,12 @@ OPENAI_API_KEY := readProperty(".env-secrets", "OPENAI_API_KEY")
 ; MsgBox OPENAI_API_KEY
 
 ; OpenAI Configuration
-OPENAI_ENDPOINT := "https://jfs-ai-use2.openai.azure.com"
+OPENAI_ENDPOINT := readProperty(".env-secrets", "OPENAI_ENDPOINT", "https://jfs-ai-use2.openai.azure.com")
+
+IS_AZURE := InStr(OPENAI_ENDPOINT, "azure", false) ? true : false
+
 OPENAI_API_VERSION := "2025-01-01-preview"
-OPENAI_MODEL := "gpt-4.1"
+OPENAI_MODEL := "gpt-4o"
 MAX_TOKENS := 800
 TEMPERATURE := 0.7
 TOP_P := 0.95
@@ -143,12 +146,26 @@ callOpenAIAPI(userMessage) {
     jsonPayload := constructOpenAIAPIPayload(userMessage)
     ; Send request
     http := ComObject("WinHttp.WinHttpRequest.5.1")
-    url := OPENAI_ENDPOINT . "/openai/deployments/" . OPENAI_MODEL . "/chat/completions?api-version=" . OPENAI_API_VERSION
+	if IS_AZURE 
+	{
+		url := OPENAI_ENDPOINT . "/openai/deployments/" . OPENAI_MODEL . "/chat/completions?api-version=" . OPENAI_API_VERSION
+	}
+	else
+	{
+		url := OPENAI_ENDPOINT
+	}
 
     http.Open("POST", url, false)
     http.SetRequestHeader("Content-Type", "application/json; charset=utf-8")
-    http.SetRequestHeader("api-key", OPENAI_API_KEY)
-
+	if IS_AZURE
+	{
+		http.SetRequestHeader("api-key", OPENAI_API_KEY)
+	}
+	else
+	{
+		http.SetRequestHeader("Authorization", "Bearer " . OPENAI_API_KEY)
+	}
+		
     http.Send(jsonPayload)
     if (http.Status != 200) {
         throw Error("HTTP Error: " . http.Status . "`nResponse: " . http.ResponseText)
