@@ -5,8 +5,8 @@
 FileEncoding 'UTF-8'
 
 ; set default configuration values
-global CONFIG_FILE := A_ScriptDir . "/../" . ".env-secrets"
-global SYSTEM_PROMPT_FILE := A_ScriptDir . "/../" . "system-prompt-completion.md"
+global CONFIG_FILE := A_ScriptDir . "\..\" . ".env-secrets"
+global SYSTEM_PROMPT_FILE := A_ScriptDir . "\..\" . "system-prompt-completion.md"
 global OPENAI_API_KEY := ""
 global OPENAI_ENDPOINT := "https://jfs-ai-use2.openai.azure.com"
 global OPENAI_API_VERSION := "2025-01-01-preview"
@@ -52,6 +52,7 @@ global CUSTOM_COMPLETION_URL := ""
 ^!k::
 {
     try {
+        LoadConfigurationFromFile()
         showConfigDialog()
     } catch Error as e {
         MsgBox e.message
@@ -167,12 +168,11 @@ callOpenAIAPI(userMessage) {
     http.Open("POST", completionUrl, false)
     http.SetRequestHeader("Content-Type", "application/json; charset=utf-8")
     http.SetRequestHeader("api-key", OPENAI_API_KEY)
-
+    http.SetRequestHeader("Authorization", "Bearer " . OPENAI_API_KEY)
     http.Send(jsonPayload)
     if (http.Status != 200) {
         throw Error("HTTP Error: " . http.Status . "`nResponse: " . http.ResponseText)
     }
-
     ; Use BinArr_ToString to properly handle UTF-8 response
     return BinArr_ToString(http.ResponseBody, "UTF-8")
 }
@@ -235,9 +235,11 @@ readProperty(content, keyName, defaultValue := "") {
 }
 
 LoadConfiguration() {
-    if FileExist(CONFIG_FILE) && OPENAI_API_KEY != "" {
+    if FileExist(CONFIG_FILE) {
         ; Reload configuration from file just in case it was edited manually
         LoadConfigurationFromFile()
+    }
+    if OPENAI_API_KEY != "" {
         return true
     }
     showConfigDialog()
@@ -282,7 +284,7 @@ showConfigDialog() {
     configGui.Add("Text", "x20 y185", "[Mandatory] OpenAI Model:")
     global openaiModelEdit := configGui.Add("Edit", "x20 y205 w400 h20", OPENAI_MODEL)
 
-    configGui.Add("Text", "x20 y255", " === OPTIONAL PARAMETERS ===")
+    configGui.Add("Text", "x20 y255", " === OPTIONAL: ===")
 
     configGui.Add("Text", "x20 y300", "Custom Completion URL:")
     global completionUrlEdit := configGui.Add("Edit", "x20 y320 w400 h20", CUSTOM_COMPLETION_URL)
