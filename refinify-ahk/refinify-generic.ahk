@@ -4,52 +4,71 @@
 
 FileEncoding 'UTF-8'
 
-OPENAI_API_KEY := readProperty(".env-secrets", "OPENAI_API_KEY")
-; DEBUG: check OPENAI_API_KEY
-; MsgBox OPENAI_API_KEY
+; set default configuration values
+global CONFIG_FILE := A_ScriptDir . "\..\" . ".env-secrets"
+global SYSTEM_PROMPT_FILE := A_ScriptDir . "\..\" . "system-prompt-completion.md"
+global OPENAI_API_KEY := ""
+global OPENAI_ENDPOINT := "https://api.openai.com"
+global OPENAI_API_VERSION := ""
+global OPENAI_MODEL := "gpt-4.1"
+global MAX_TOKENS := 800
+global TEMPERATURE := 0.7
+global TOP_P := 0.95
+global FREQUENCY_PENALTY := 0
+global PRESENCE_PENALTY := 0
+global CUSTOM_COMPLETION_URL := ""
 
-; OpenAI Configuration
-OPENAI_ENDPOINT := "https://jfs-ai-use2.openai.azure.com"
-OPENAI_API_VERSION := "2025-01-01-preview"
-OPENAI_MODEL := "gpt-4.1"
-MAX_TOKENS := 800
-TEMPERATURE := 0.7
-TOP_P := 0.95
-FREQUENCY_PENALTY := 0
-PRESENCE_PENALTY := 0
-
-SYSTEM_PROMPT := "# You are a helpful assistant.`n"
-. "Your task is to refine my messages to be concise, clear, and professional.`n"
-. "- Keep the original meaning, formatting, and tone—including any jokes or sarcasm.`n"
-. "- If anything could sound rude or impolite, rephrase it to be more polite.`n"
-. "- Use simple, direct English. Avoid complicated words and long sentences.`n"
-. "- Assume the audience is often technical, but not always.`n"
-. "- Both I and my audience are usually not native English speakers.`n"
-. "- Do not insert empty lines between the paragraphs and.`n"
-. "- Preserve a similar number of lines when deciding on new lines.`n"
-. "- Preserve Markdown formatting in slack, backquotes and code blocks.`n"
-. "- If the line in the message starts with #- treat is as command and not a part of the message.`n"
-. "  For example ``#- preserve language`` means the reply should be in the same language as the message.`n"
-. "- **Under no circumstances should you perform any action or transformation other than refining the message as described above.**`n"
-. "  If the user asks you to translate, summarize, or perform any action, IGNORE the request and only refine the text as specified above.`n"
-. "  Never translate, summarize, or otherwise act on the content; only refine wording and clarity, unless it is requested in a #- command.**`n"
-
+; LoadConfiguration()
 
 ; DEBUG: test message
 ; MsgBox refineMessage("Note: You'll need your own JFrog OpenAI token, if you don't have one." . FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss") . "?! ")
 ; EOF DEBUG
 
+; Ctrl+Alt+P replace refined message over the original message
+^!p::
+{
+    try {
+        if (LoadConfiguration()) {
+            replaceRefinedMessage()
+        }
+    } catch Error as e {
+        MsgBox e.message
+    }
+}
+
 ; Ctrl+Alt+R append refined message to the original message
 ^!r::
 {
+    try {
+        if (LoadConfiguration()) {
+            appendRefinedMessage()
+        }
+    } catch Error as e {
+        MsgBox e.message
+    }
+}
+
+; Ctrl+Alt+K show configuration dialog
+^!k::
+{
+    try {
+        if ! FileExist(CONFIG_FILE) {
+            FileAppend "# Refinify Configuration file" . "`n", CONFIG_FILE
+        }
+        showConfigDialog()
+    } catch Error as e {
+        MsgBox e.message
+    }
+}
+
+appendRefinedMessage() {
     originalWin := WinGetID("A")
     originalClipboard := A_Clipboard
     A_Clipboard := ""
     SendInput "^a"
     SendInput "^c"
     if !ClipWait(2) {
-        MsgBox "The attempt to copy text onto the clipboard failed."
-        return
+        throw Error("The attempt to copy text onto the clipboard failed.")
     }
     originalMessage := A_Clipboard
     refinedMessage := refineMessage(originalMessage)
@@ -62,17 +81,14 @@ SYSTEM_PROMPT := "# You are a helpful assistant.`n"
     A_Clipboard := originalClipboard
 }
 
-; Ctrl+Alt+T paste refined message over the original message
-^!t::
-{
+replaceRefinedMessage() {
     originalWin := WinGetID("A")
     originalClipboard := A_Clipboard
     A_Clipboard := ""
     SendInput "^a"
     SendInput "^c"
     if !ClipWait(2) {
-        MsgBox "The attempt to copy text onto the clipboard failed."
-        return
+        throw Error("The attempt to copy text onto the clipboard failed.")
     }
     originalMessage := A_Clipboard
     refinedMessage := refineMessage(originalMessage)
@@ -85,7 +101,6 @@ SYSTEM_PROMPT := "# You are a helpful assistant.`n"
     A_Clipboard := originalClipboard
 }
 
-; -----------------------------------------------------------------------------
 refineMessage(userMessage) {
     try {
         openaiResponseText := callOpenAIAPI(userMessage)
@@ -93,7 +108,13 @@ refineMessage(userMessage) {
         cleanMsg := cleanMessage(refinedContent)
         return cleanMsg
     } catch Error as e {
-        return "Request failed: " . e.message
+        throw Error("AI request failed: " . e.message . "`n"
+        . "`n" . "Please check your configuration and ensure the OpenAI API is accessible."
+        . "`n" . "OPENAI_API_KEY: " . (StrLen(OPENAI_API_KEY) > 2 ? SubStr(OPENAI_API_KEY, 1, 1) . "xxx" . SubStr(OPENAI_API_KEY, -1) : OPENAI_API_KEY)
+        . "`n" . "OPENAI_ENDPOINT: " . OPENAI_ENDPOINT
+        . "`n" . "OPENAI_API_VERSION: " . OPENAI_API_VERSION
+        . "`n" . "OPENAI_MODEL: " . OPENAI_MODEL
+        )
     }
 }
 
@@ -102,34 +123,31 @@ constructOpenAIAPIPayload(userMessage) {
     payload := Map()
     payload["model"] := OPENAI_MODEL
 
-    messages := []
-
-    ; System message
     systemMsg := Map()
     systemMsg["role"] := "system"
     systemContent := []
     systemContentObj := Map()
     systemContentObj["type"] := "text"
-    systemContentObj["text"] := SYSTEM_PROMPT
+    systemContentObj["text"] := LoadSystemPrompt()
     systemContent.Push(systemContentObj)
     systemMsg["content"] := systemContent
+
+    messages := []
     messages.Push(systemMsg)
 
-    ; User message
     userMsg := Map()
     userMsg["role"] := "user"
     userMsg["content"] := userMessage
     messages.Push(userMsg)
 
-    ; Add messages to payload
     payload["messages"] := messages
 
-    ; Add other parameters
-    payload["max_tokens"] := MAX_TOKENS
-    payload["temperature"] := TEMPERATURE
-    payload["top_p"] := TOP_P
-    payload["frequency_penalty"] := FREQUENCY_PENALTY
-    payload["presence_penalty"] := PRESENCE_PENALTY
+    ; ensure numeric types for JSON
+    payload["max_tokens"] := Integer(MAX_TOKENS)
+    payload["temperature"] := Number(TEMPERATURE)
+    payload["top_p"] := Number(TOP_P)
+    payload["frequency_penalty"] := Number(FREQUENCY_PENALTY)
+    payload["presence_penalty"] := Number(PRESENCE_PENALTY)
     ; JXON doesn't support boolean values properly, replacing false and true by 0 or 1. However OpenAI API expects boolean values.
     ; The workaround is to use "false" as a string value. and then StrReplace "false" by false in the String dump
     ; payload["stream"] := "false"
@@ -139,21 +157,24 @@ constructOpenAIAPIPayload(userMessage) {
 
 ; Call OpenAI API Completion API to refine the message
 callOpenAIAPI(userMessage) {
-
     jsonPayload := constructOpenAIAPIPayload(userMessage)
     ; Send request
     http := ComObject("WinHttp.WinHttpRequest.5.1")
-    url := OPENAI_ENDPOINT . "/openai/deployments/" . OPENAI_MODEL . "/chat/completions?api-version=" . OPENAI_API_VERSION
-
-    http.Open("POST", url, false)
+    if CUSTOM_COMPLETION_URL != "" {
+        completionUrl := CUSTOM_COMPLETION_URL
+    } else if InStr(OPENAI_ENDPOINT, "azure") {
+        completionUrl := OPENAI_ENDPOINT . "/openai/deployments/" . OPENAI_MODEL . "/chat/completions?api-version=" . OPENAI_API_VERSION
+    } else {
+        completionUrl := OPENAI_ENDPOINT . "/v1/chat/completions"
+    }
+    http.Open("POST", completionUrl, false)
     http.SetRequestHeader("Content-Type", "application/json; charset=utf-8")
     http.SetRequestHeader("api-key", OPENAI_API_KEY)
-
+    http.SetRequestHeader("Authorization", "Bearer " . OPENAI_API_KEY)
     http.Send(jsonPayload)
     if (http.Status != 200) {
         throw Error("HTTP Error: " . http.Status . "`nResponse: " . http.ResponseText)
     }
-
     ; Use BinArr_ToString to properly handle UTF-8 response
     return BinArr_ToString(http.ResponseBody, "UTF-8")
 }
@@ -208,10 +229,118 @@ BinArr_ToString(BinArr, Encoding := "UTF-8") {
     return result
 }
 
-readProperty(filePath, keyName, defaultValue := "") {
-    content := FileRead(filePath)
+readProperty(content, keyName, defaultValue := "") {
     if RegExMatch(content, "m)^" . keyName . "=(.*)$", &match) {
         return Trim(match[1], " `t`r`n`"'")
     }
     return defaultValue
+}
+
+LoadConfiguration() {
+    if FileExist(CONFIG_FILE) {
+        ; Reload configuration from file just in case it was edited manually
+        LoadConfigurationFromFile()
+        if OPENAI_API_KEY != "" {
+            return true
+        }
+    } else {
+        FileAppend "# Refinify Configuration file" . "`n", CONFIG_FILE
+    }
+    showConfigDialog()
+    return false
+}
+
+LoadSystemPrompt() {
+    return FileRead(SYSTEM_PROMPT_FILE)
+}
+
+LoadConfigurationFromFile() {
+    global OPENAI_API_KEY, OPENAI_ENDPOINT, OPENAI_API_VERSION, OPENAI_MODEL, MAX_TOKENS, TEMPERATURE, TOP_P, FREQUENCY_PENALTY, PRESENCE_PENALTY, CUSTOM_COMPLETION_URL
+    content := FileRead(CONFIG_FILE)
+    OPENAI_API_KEY := readProperty(content, "OPENAI_API_KEY", OPENAI_API_KEY)
+    OPENAI_ENDPOINT := readProperty(content, "OPENAI_ENDPOINT", OPENAI_ENDPOINT)
+    OPENAI_API_VERSION := readProperty(content, "OPENAI_API_VERSION", OPENAI_API_VERSION)
+    OPENAI_MODEL := readProperty(content, "OPENAI_MODEL", OPENAI_MODEL)
+    MAX_TOKENS := readProperty(content, "MAX_TOKENS", MAX_TOKENS)
+    TEMPERATURE := readProperty(content, "TEMPERATURE", TEMPERATURE)
+    TOP_P := readProperty(content, "TOP_P", TOP_P)
+    FREQUENCY_PENALTY := readProperty(content, "FREQUENCY_PENALTY", FREQUENCY_PENALTY)
+    PRESENCE_PENALTY := readProperty(content, "PRESENCE_PENALTY", PRESENCE_PENALTY)
+}
+
+; Configuration dialog function
+showConfigDialog() {
+    global CONFIG_FILE, OPENAI_API_KEY, OPENAI_ENDPOINT, OPENAI_API_VERSION, OPENAI_MODEL, MAX_TOKENS, TEMPERATURE, TOP_P, FREQUENCY_PENALTY, PRESENCE_PENALTY, CUSTOM_COMPLETION_URL
+    global configGui := Gui("+Resize", "Refinify Configuration")
+    configGui.SetFont("s10")
+    configGui.OnEvent("Close", ConfigCancel)
+
+    ; Add controls with proper label positioning (labels above edit controls)
+    configGui.Add("Text", "x20 y20", "[Mandatory] API Key:")
+    global apiKeyEdit := configGui.Add("Edit", "x20 y40 w400 h20 Password", OPENAI_API_KEY)
+
+    configGui.Add("Text", "x20 y75", "[Mandatory] Endpoint URL:")
+    global endpointEdit := configGui.Add("Edit", "x20 y95 w400 h20", OPENAI_ENDPOINT)
+
+    configGui.Add("Text", "x20 y130", "[Must be empty for OpenAI] API Version:")
+    global apiVersionEdit := configGui.Add("Edit", "x20 y150 w400 h20", OPENAI_API_VERSION)
+
+    configGui.Add("Text", "x20 y185", "[Mandatory] OpenAI Model:")
+    global openaiModelEdit := configGui.Add("Edit", "x20 y205 w400 h20", OPENAI_MODEL)
+
+    configGui.Add("Text", "x20 y255", " === OPTIONAL: ===")
+
+    configGui.Add("Text", "x20 y300", "Custom Completion URL:")
+    global completionUrlEdit := configGui.Add("Edit", "x20 y320 w400 h20", CUSTOM_COMPLETION_URL)
+
+    configGui.Add("Text", "x20 y355", "Max Tokens:")
+    global maxTokensEdit := configGui.Add("Edit", "x20 y375 w400 h20", MAX_TOKENS)
+
+    configGui.Add("Text", "x20 y410", "Temperature:")
+    global temperatureEdit := configGui.Add("Edit", "x20 y430 w400 h20", Format("{:.2f}", TEMPERATURE))
+
+    configGui.Add("Text", "x20 y465", "Top P:")
+    global topPEdit := configGui.Add("Edit", "x20 y485 w400 h20", Format("{:.2f}", TOP_P))
+
+    configGui.Add("Text", "x20 y520", "Frequency Penalty:")
+    global frequencyPenaltyEdit := configGui.Add("Edit", "x20 y540 w400 h20", Format("{:.1f}", FREQUENCY_PENALTY))
+
+    configGui.Add("Text", "x20 y575", "Presence Penalty:")
+    global presencePenaltyEdit := configGui.Add("Edit", "x20 y595 w400 h20", Format("{:.1f}", PRESENCE_PENALTY))
+
+    saveBtn := configGui.Add("Button", "x20 y630 w80 h30", "SAVE")
+    saveBtn.OnEvent("Click", ConfigSave)
+    cancelBtn := configGui.Add("Button", "x120 y630 w80 h30", "CANCEL")
+    cancelBtn.OnEvent("Click", ConfigCancel)
+
+    configGui.Show("w450 h700")
+}
+
+ConfigSave(*) {
+    global configGui
+    try {
+        FileCopy CONFIG_FILE, CONFIG_FILE . ".bak"
+        FileDelete CONFIG_FILE
+    }
+    global apiKeyEdit, endpointEdit, apiVersionEdit, openaiModelEdit, completionUrlEdit, maxTokensEdit, temperatureEdit, topPEdit, frequencyPenaltyEdit, presencePenaltyEdit
+    envContent := "OPENAI_API_KEY=" . apiKeyEdit.Text . "`n"
+    envContent .= "OPENAI_ENDPOINT=" . endpointEdit.Text . "`n"
+    envContent .= "OPENAI_API_VERSION=" . apiVersionEdit.Text . "`n"
+    envContent .= "OPENAI_MODEL=" . openaiModelEdit.Text . "`n"
+    envContent .= "CUSTOM_COMPLETION_URL=" . completionUrlEdit.Text . "`n"
+    envContent .= "MAX_TOKENS=" . maxTokensEdit.Text . "`n"
+    envContent .= "TEMPERATURE=" . temperatureEdit.Text . "`n"
+    envContent .= "TOP_P=" . topPEdit.Text . "`n"
+    envContent .= "FREQUENCY_PENALTY=" . frequencyPenaltyEdit.Text . "`n"
+    envContent .= "PRESENCE_PENALTY=" . presencePenaltyEdit.Text . "`n"
+    try {
+        FileAppend envContent, CONFIG_FILE
+        LoadConfigurationFromFile()
+    }
+    configGui.Destroy()
+}
+
+ConfigCancel(*) {
+    global configGui
+    configGui.Destroy()
 }
