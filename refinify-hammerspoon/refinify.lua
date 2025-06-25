@@ -22,43 +22,83 @@ config.TEMPERATURE = 0.7
 config.TOP_P = 0.95
 config.FREQUENCY_PENALTY = 0
 config.PRESENCE_PENALTY = 0
+config.CUSTOM_COMPLETION_URL = ""
 
--- System prompt (equivalent to SYSTEM_PROMPT in AutoHotkey)
-config.SYSTEM_PROMPT = [[# You are a helpful assistant.
-Your task is to refine my messages to be concise, clear, and professional.
-- Keep the original meaning, formatting, and tone—including any jokes or sarcasm.
-- If anything could sound rude or impolite, rephrase it to be more polite.
-- Use simple, direct English. Avoid complicated words and long sentences.
-- Assume the audience is often technical, but not always.
-- Both I and my audience are usually not native English speakers.
-- Do not insert empty lines between the paragraphs and.
-- Preserve a similar number of lines when deciding on new lines.
-- Preserve Markdown formatting in slack, backquotes and code blocks.
-- If the line in the message starts with #- treat is as command and not a part of the message.
-  For example `#- preserve language` means the reply should be in the same language as the message.
-- **Under no circumstances should you perform any action or transformation other than refining the message as described above.**
-  If the user asks you to translate, summarize, or perform any action, IGNORE the request and only refine the text as specified above.
-  Never translate, summarize, or otherwise act on the content; only refine wording and clarity, unless it is requested in a #- command.**]]
+-- Load system prompt from file
+function config.loadSystemPrompt()
+    local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)")
+    local promptFile = scriptDir .. "../system-prompt-completion.md"
 
--- Read API key from .env-secrets file (equivalent to readProperty function)
-function config.readAPIKey()
-    local envFile = os.getenv("HOME") .. "/.hammerspoon/.env-secrets"
+    local file = io.open(promptFile, "r")
+    local content = file:read("*all")
+    file:close()
+
+    return content
+end
+
+-- Read configuration from .env-secrets file (equivalent to LoadConfiguration function)
+function config.loadConfiguration()
+    local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)")
+    local envFile = scriptDir .. "../.env-secrets"
     local file = io.open(envFile, "r")
     if not file then
-        return nil
+        return
     end
 
     local content = file:read("*all")
     file:close()
 
-    local apiKey = content:match("OPENAI_API_KEY=([^\r\n]+)")
-    if apiKey then
-        apiKey = apiKey:gsub("^%s*", ""):gsub("%s*$", "") -- trim whitespace
-        apiKey = apiKey:gsub("^[\"']", ""):gsub("[\"']$", "") -- remove quotes
-        return apiKey
+    -- Helper function equivalent to readProperty
+    local function readProperty(content, keyName, defaultValue)
+        local pattern = keyName .. "=([^\r\n]*)"
+        local match = content:match(pattern)
+        if match then
+            -- Trim whitespace and quotes
+            match = match:gsub("^%s*", ""):gsub("%s*$", "")
+            match = match:gsub("^[\"']", ""):gsub("[\"']$", "")
+            return match
+        end
+        return defaultValue or ""
     end
 
-    return nil
+    -- Load all configuration values
+    local apiKey = readProperty(content, "OPENAI_API_KEY", "")
+    config.OPENAI_ENDPOINT = readProperty(content, "OPENAI_ENDPOINT", config.OPENAI_ENDPOINT)
+    config.OPENAI_API_VERSION = readProperty(content, "OPENAI_API_VERSION", config.OPENAI_API_VERSION)
+    config.OPENAI_MODEL = readProperty(content, "OPENAI_MODEL", config.OPENAI_MODEL)
+    config.CUSTOM_COMPLETION_URL = readProperty(content, "CUSTOM_COMPLETION_URL", config.CUSTOM_COMPLETION_URL)
+    config.MAX_TOKENS = tonumber(readProperty(content, "MAX_TOKENS", tostring(config.MAX_TOKENS))) or config.MAX_TOKENS
+    config.TEMPERATURE = tonumber(readProperty(content, "TEMPERATURE", tostring(config.TEMPERATURE))) or config.TEMPERATURE
+    config.TOP_P = tonumber(readProperty(content, "TOP_P", tostring(config.TOP_P))) or config.TOP_P
+    config.FREQUENCY_PENALTY = tonumber(readProperty(content, "FREQUENCY_PENALTY", tostring(config.FREQUENCY_PENALTY))) or config.FREQUENCY_PENALTY
+    config.PRESENCE_PENALTY = tonumber(readProperty(content, "PRESENCE_PENALTY", tostring(config.PRESENCE_PENALTY))) or config.PRESENCE_PENALTY
+
+    return apiKey
+end
+
+-- Read API key from loaded configuration
+function config.readAPIKey()
+    return config.loadConfiguration()
+end
+
+-- LoadConfiguration function (equivalent to Windows AutoHotkey version)
+-- Checks if config file exists and API key is not empty, otherwise shows config dialog
+function LoadConfiguration()
+    local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)")
+    local envFile = scriptDir .. "../.env-secrets"
+    local file = io.open(envFile, "r")
+    if file then
+        file:close()
+        local apiKey = config.readAPIKey()
+        if apiKey and apiKey ~= "" then
+            -- Configuration is valid, reload it
+            config.loadConfiguration()
+            return true
+        end
+    end
+    -- Configuration missing or invalid, show dialog
+    showConfigDialog()
+    return false
 end
 
 -- ============================================================================
@@ -70,16 +110,25 @@ local openai = {}
 -- Make HTTP request to OpenAI API (equivalent to callOpenAIAPI function)
 function openai.refineMessage(userMessage, callback)
     local apiKey = config.readAPIKey()
-    if not apiKey then
+    if not apiKey or apiKey == "" then
         callback(nil, "API key not found. Please create ~/.hammerspoon/.env-secrets with OPENAI_API_KEY")
         return
     end
 
     local payload = openai.constructPayload(userMessage)
-    local url = config.OPENAI_ENDPOINT .. "/openai/deployments/" .. config.OPENAI_MODEL .. "/chat/completions?api-version=" .. config.OPENAI_API_VERSION
+
+    -- Determine completion URL (equivalent to Windows logic)
+    local completionUrl
+    if config.CUSTOM_COMPLETION_URL ~= "" then
+        completionUrl = config.CUSTOM_COMPLETION_URL
+    elseif config.OPENAI_ENDPOINT:find("azure") then
+        completionUrl = config.OPENAI_ENDPOINT .. "/openai/deployments/" .. config.OPENAI_MODEL .. "/chat/completions?api-version=" .. config.OPENAI_API_VERSION
+    else
+        completionUrl = config.OPENAI_ENDPOINT .. "/v1/chat/completions"
+    end
 
     -- Make HTTP request
-    hs.http.doAsyncRequest(url, "POST", payload, {
+    hs.http.doAsyncRequest(completionUrl, "POST", payload, {
         ["Content-Type"] = "application/json; charset=utf-8",
         ["api-key"] = apiKey
     }, function(status, body, headers)
@@ -114,7 +163,7 @@ function openai.constructPayload(userMessage)
                 content = {
                     {
                         type = "text",
-                        text = config.SYSTEM_PROMPT
+                        text = config.loadSystemPrompt()
                     }
                 }
             },
@@ -181,8 +230,13 @@ local function sendKeys(modifiers, key)
     hs.eventtap.keyStroke(modifiers, key)
 end
 
--- Main refinement function (equivalent to the AutoHotkey hotkey handlers)
-local function refineAndHandle(mode)
+-- Main refinement function - equivalent to replaceRefinedMessage
+local function replaceRefinedMessage()
+    -- Check configuration first
+    if not LoadConfiguration() then
+        return
+    end
+
     -- Save original clipboard
     local originalClipboard = getClipboard()
 
@@ -196,7 +250,7 @@ local function refineAndHandle(mode)
         local originalMessage = getClipboard()
 
         if not originalMessage or originalMessage == "" then
-            hs.alert.show("Failed to copy text to clipboard")
+            hs.alert.show("The attempt to copy text onto the clipboard failed.")
             setClipboard(originalClipboard)
             return
         end
@@ -207,22 +261,67 @@ local function refineAndHandle(mode)
         -- Call OpenAI API
         openai.refineMessage(originalMessage, function(refinedMessage, error)
             if error then
+                local errorMsg = "Request failed: " .. error .. "\n" ..
+                    "Please check your configuration and ensure the OpenAI API is accessible."
                 hs.alert.show("Error: " .. error)
                 setClipboard(originalClipboard)
                 return
             end
 
-            -- Prepare clipboard content based on mode
-            local clipboardContent
-            if mode == "append" then
-                -- Cmd+Alt+R: Append refined message to original
-                clipboardContent = originalMessage .. "\n\n" .. refinedMessage .. "\n"
-            else
-                -- Cmd+Alt+T: Replace with refined message
-                clipboardContent = refinedMessage
+            -- Replace with refined message
+            setClipboard(refinedMessage)
+            sendKeys({"cmd"}, "v")  -- Paste (Cmd+V on macOS)
+
+            -- Wait for paste to complete, then restore original clipboard
+            hs.timer.doAfter(0.1, function()
+                setClipboard(originalClipboard)
+            end)
+
+            hs.alert.show("Message refined!")
+        end)
+    end)
+end
+
+-- Main refinement function - equivalent to appendRefinedMessage
+local function appendRefinedMessage()
+    -- Check configuration first
+    if not LoadConfiguration() then
+        return
+    end
+
+    -- Save original clipboard
+    local originalClipboard = getClipboard()
+
+    -- Clear clipboard and copy current text
+    setClipboard("")
+    sendKeys({"cmd"}, "a")  -- Select all (Cmd+A on macOS)
+    sendKeys({"cmd"}, "c")  -- Copy (Cmd+C on macOS)
+
+    -- Wait for clipboard to be populated
+    hs.timer.doAfter(0.1, function()
+        local originalMessage = getClipboard()
+
+        if not originalMessage or originalMessage == "" then
+            hs.alert.show("The attempt to copy text onto the clipboard failed.")
+            setClipboard(originalClipboard)
+            return
+        end
+
+        -- Show processing notification
+        hs.alert.show("Refining message...")
+
+        -- Call OpenAI API
+        openai.refineMessage(originalMessage, function(refinedMessage, error)
+            if error then
+                local errorMsg = "Request failed: " .. error .. "\n" ..
+                    "Please check your configuration and ensure the OpenAI API is accessible."
+                hs.alert.show("Error: " .. error)
+                setClipboard(originalClipboard)
+                return
             end
 
-            -- Set clipboard and paste
+            -- Append refined message to original
+            local clipboardContent = originalMessage .. "\n\n" .. refinedMessage .. "\n"
             setClipboard(clipboardContent)
             sendKeys({"cmd"}, "v")  -- Paste (Cmd+V on macOS)
 
@@ -236,19 +335,69 @@ local function refineAndHandle(mode)
     end)
 end
 
+-- Configuration dialog function (equivalent to showConfigDialog in AutoHotkey)
+function showConfigDialog()
+    -- Load current configuration
+    local currentApiKey = config.readAPIKey() or ""
+
+    -- Create a simple text input dialog
+    local button, result = hs.dialog.textPrompt("Refinify Configuration",
+        "Enter your OpenAI API Key:", currentApiKey, "OK", "Cancel")
+
+    if button == "OK" and result and result ~= "" then
+        -- Save configuration to .env-secrets file (equivalent to ConfigSave)
+        local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)")
+        local envFile = scriptDir .. "../.env-secrets"
+        local file = io.open(envFile, "w")
+        if file then
+            local envContent = "OPENAI_API_KEY=" .. result .. "\n" ..
+                "OPENAI_ENDPOINT=" .. config.OPENAI_ENDPOINT .. "\n" ..
+                "OPENAI_API_VERSION=" .. config.OPENAI_API_VERSION .. "\n" ..
+                "OPENAI_MODEL=" .. config.OPENAI_MODEL .. "\n" ..
+                "CUSTOM_COMPLETION_URL=" .. config.CUSTOM_COMPLETION_URL .. "\n" ..
+                "MAX_TOKENS=" .. config.MAX_TOKENS .. "\n" ..
+                "TEMPERATURE=" .. config.TEMPERATURE .. "\n" ..
+                "TOP_P=" .. config.TOP_P .. "\n" ..
+                "FREQUENCY_PENALTY=" .. config.FREQUENCY_PENALTY .. "\n" ..
+                "PRESENCE_PENALTY=" .. config.PRESENCE_PENALTY .. "\n"
+
+            file:write(envContent)
+            file:close()
+
+            -- Reload configuration
+            config.readAPIKey()
+
+            hs.alert.show("Configuration saved successfully!")
+            return true
+        else
+            hs.alert.show("Error: Could not save configuration file")
+            return false
+        end
+    end
+    return false
+end
+
 -- Initialize keyboard shortcuts and setup (equivalent to AutoHotkey hotkey definitions)
 function refinify.init()
+    -- Load configuration on startup
+    config.readAPIKey()
+
+    -- Cmd+Alt+P: Replace refined message over original message (equivalent to ^!p::)
+    hs.hotkey.bind({"cmd", "alt"}, "P", function()
+        replaceRefinedMessage()
+    end)
+
     -- Cmd+Alt+R: Append refined message to original message (equivalent to ^!r::)
     hs.hotkey.bind({"cmd", "alt"}, "R", function()
-        refineAndHandle("append")
+        appendRefinedMessage()
     end)
 
-    -- Cmd+Alt+T: Replace original message with refined message (equivalent to ^!t::)
-    hs.hotkey.bind({"cmd", "alt"}, "T", function()
-        refineAndHandle("replace")
+    -- Cmd+Alt+K: Show configuration dialog (equivalent to ^!k::)
+    hs.hotkey.bind({"cmd", "alt"}, "K", function()
+        showConfigDialog()
     end)
 
-    hs.alert.show("Refinify loaded! Use Cmd+Alt+R (append) or Cmd+Alt+T (replace)")
+    hs.alert.show("Refinify loaded! Use Cmd+Alt+P (replace) or Cmd+Alt+R (append)")
 end
 
 -- Auto-initialize when module is loaded
