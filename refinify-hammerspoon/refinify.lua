@@ -14,8 +14,8 @@
 local config = {}
 
 -- OpenAI Configuration (equivalent to AutoHotkey constants)
-config.OPENAI_ENDPOINT = "https://jfs-ai-use2.openai.azure.com"
-config.OPENAI_API_VERSION = "2025-01-01-preview"
+config.OPENAI_ENDPOINT = "https://api.openai.com"
+config.OPENAI_API_VERSION = ""
 config.OPENAI_MODEL = "gpt-4.1"
 config.MAX_TOKENS = 800
 config.TEMPERATURE = 0.7
@@ -36,13 +36,13 @@ function config.loadSystemPrompt()
     return content
 end
 
--- Read configuration from .env-secrets file (equivalent to LoadConfiguration function)
-function config.loadConfiguration()
+-- Read configuration from .env-secrets file (equivalent to LoadConfigurationFromFile function)
+function config.loadConfigurationFromFile()
     local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)")
     local envFile = scriptDir .. "../.env-secrets"
     local file = io.open(envFile, "r")
     if not file then
-        return
+        return ""
     end
 
     local content = file:read("*all")
@@ -61,7 +61,7 @@ function config.loadConfiguration()
         return defaultValue or ""
     end
 
-    -- Load all configuration values
+    -- Load all configuration values (equivalent to Windows LoadConfigurationFromFile)
     local apiKey = readProperty(content, "OPENAI_API_KEY", "")
     config.OPENAI_ENDPOINT = readProperty(content, "OPENAI_ENDPOINT", config.OPENAI_ENDPOINT)
     config.OPENAI_API_VERSION = readProperty(content, "OPENAI_API_VERSION", config.OPENAI_API_VERSION)
@@ -76,9 +76,9 @@ function config.loadConfiguration()
     return apiKey
 end
 
--- Read API key from loaded configuration
+-- Read API key from loaded configuration (equivalent to Windows readAPIKey)
 function config.readAPIKey()
-    return config.loadConfiguration()
+    return config.loadConfigurationFromFile()
 end
 
 -- LoadConfiguration function (equivalent to Windows AutoHotkey version)
@@ -89,11 +89,17 @@ function LoadConfiguration()
     local file = io.open(envFile, "r")
     if file then
         file:close()
-        local apiKey = config.readAPIKey()
+        -- Reload configuration from file just in case it was edited manually
+        local apiKey = config.loadConfigurationFromFile()
         if apiKey and apiKey ~= "" then
-            -- Configuration is valid, reload it
-            config.loadConfiguration()
             return true
+        end
+    else
+        -- Create empty config file if it doesn't exist
+        file = io.open(envFile, "w")
+        if file then
+            file:write("# Refinify Configuration file\n")
+            file:close()
         end
     end
     -- Configuration missing or invalid, show dialog
@@ -128,10 +134,13 @@ function openai.refineMessage(userMessage, callback)
     end
 
     -- Make HTTP request
-    hs.http.doAsyncRequest(completionUrl, "POST", payload, {
+    local headers = {
         ["Content-Type"] = "application/json; charset=utf-8",
-        ["api-key"] = apiKey
-    }, function(status, body, headers)
+        ["api-key"] = apiKey,
+        ["Authorization"] = "Bearer " .. apiKey
+    }
+
+    hs.http.doAsyncRequest(completionUrl, "POST", payload, headers, function(status, body, headers)
         if status ~= 200 then
             callback(nil, "HTTP Error: " .. status .. "\nResponse: " .. (body or ""))
             return
@@ -394,6 +403,19 @@ function refinify.init()
 
     -- Cmd+Alt+K: Show configuration dialog (equivalent to ^!k::)
     hs.hotkey.bind({"cmd", "alt"}, "K", function()
+        local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)")
+        local envFile = scriptDir .. "../.env-secrets"
+        local file = io.open(envFile, "r")
+        if not file then
+            -- Create empty config file if it doesn't exist
+            file = io.open(envFile, "w")
+            if file then
+                file:write("# Refinify Configuration file\n")
+                file:close()
+            end
+        else
+            file:close()
+        end
         showConfigDialog()
     end)
 
