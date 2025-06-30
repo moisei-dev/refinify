@@ -270,9 +270,13 @@ local function replaceRefinedMessage()
         -- Call OpenAI API
         openai.refineMessage(originalMessage, function(refinedMessage, error)
             if error then
-                local errorMsg = "Request failed: " .. error .. "\n" ..
-                    "Please check your configuration and ensure the OpenAI API is accessible."
-                hs.alert.show("Error: " .. error)
+                local errorMsg = "AI request failed: " .. error .. "\n" ..
+                    "Please check your configuration and ensure the OpenAI API is accessible.\n" ..
+                    "OPENAI_API_KEY: " .. (config.OPENAI_API_KEY and string.len(config.OPENAI_API_KEY) > 2 and string.sub(config.OPENAI_API_KEY, 1, 1) .. "xxx" .. string.sub(config.OPENAI_API_KEY, -1) or config.OPENAI_API_KEY or "Not set") .. "\n" ..
+                    "OPENAI_ENDPOINT: " .. config.OPENAI_ENDPOINT .. "\n" ..
+                    "OPENAI_API_VERSION: " .. config.OPENAI_API_VERSION .. "\n" ..
+                    "OPENAI_MODEL: " .. config.OPENAI_MODEL
+                hs.alert.show(errorMsg)
                 setClipboard(originalClipboard)
                 return
             end
@@ -322,9 +326,13 @@ local function appendRefinedMessage()
         -- Call OpenAI API
         openai.refineMessage(originalMessage, function(refinedMessage, error)
             if error then
-                local errorMsg = "Request failed: " .. error .. "\n" ..
-                    "Please check your configuration and ensure the OpenAI API is accessible."
-                hs.alert.show("Error: " .. error)
+                local errorMsg = "AI request failed: " .. error .. "\n" ..
+                    "Please check your configuration and ensure the OpenAI API is accessible.\n" ..
+                    "OPENAI_API_KEY: " .. (config.OPENAI_API_KEY and string.len(config.OPENAI_API_KEY) > 2 and string.sub(config.OPENAI_API_KEY, 1, 1) .. "xxx" .. string.sub(config.OPENAI_API_KEY, -1) or config.OPENAI_API_KEY or "Not set") .. "\n" ..
+                    "OPENAI_ENDPOINT: " .. config.OPENAI_ENDPOINT .. "\n" ..
+                    "OPENAI_API_VERSION: " .. config.OPENAI_API_VERSION .. "\n" ..
+                    "OPENAI_MODEL: " .. config.OPENAI_MODEL
+                hs.alert.show(errorMsg)
                 setClipboard(originalClipboard)
                 return
             end
@@ -348,42 +356,232 @@ end
 function showConfigDialog()
     -- Load current configuration
     local currentApiKey = config.readAPIKey() or ""
-
-    -- Create a simple text input dialog
-    local button, result = hs.dialog.textPrompt("Refinify Configuration",
-        "Enter your OpenAI API Key:", currentApiKey, "OK", "Cancel")
-
-    if button == "OK" and result and result ~= "" then
-        -- Save configuration to .env-secrets file (equivalent to ConfigSave)
-        local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)")
-        local envFile = scriptDir .. "../.env-secrets"
-        local file = io.open(envFile, "w")
-        if file then
-            local envContent = "OPENAI_API_KEY=" .. result .. "\n" ..
-                "OPENAI_ENDPOINT=" .. config.OPENAI_ENDPOINT .. "\n" ..
-                "OPENAI_API_VERSION=" .. config.OPENAI_API_VERSION .. "\n" ..
-                "OPENAI_MODEL=" .. config.OPENAI_MODEL .. "\n" ..
-                "CUSTOM_COMPLETION_URL=" .. config.CUSTOM_COMPLETION_URL .. "\n" ..
-                "MAX_TOKENS=" .. config.MAX_TOKENS .. "\n" ..
-                "TEMPERATURE=" .. config.TEMPERATURE .. "\n" ..
-                "TOP_P=" .. config.TOP_P .. "\n" ..
-                "FREQUENCY_PENALTY=" .. config.FREQUENCY_PENALTY .. "\n" ..
-                "PRESENCE_PENALTY=" .. config.PRESENCE_PENALTY .. "\n"
-
-            file:write(envContent)
-            file:close()
-
-            -- Reload configuration
-            config.readAPIKey()
-
-            hs.alert.show("Configuration saved successfully!")
-            return true
-        else
-            hs.alert.show("Error: Could not save configuration file")
+    
+    -- Create a comprehensive configuration dialog similar to Windows AHK
+    local configChoices = {
+        "API Key: " .. (currentApiKey ~= "" and string.sub(currentApiKey, 1, 1) .. "xxx" .. string.sub(currentApiKey, -1) or "Not set"),
+        "Endpoint: " .. config.OPENAI_ENDPOINT,
+        "API Version: " .. (config.OPENAI_API_VERSION ~= "" and config.OPENAI_API_VERSION or "Empty (for OpenAI)"),
+        "Model: " .. config.OPENAI_MODEL,
+        "Max Tokens: " .. config.MAX_TOKENS,
+        "Temperature: " .. string.format("%.2f", config.TEMPERATURE),
+        "Top P: " .. string.format("%.2f", config.TOP_P),
+        "Frequency Penalty: " .. string.format("%.1f", config.FREQUENCY_PENALTY),
+        "Presence Penalty: " .. string.format("%.1f", config.PRESENCE_PENALTY),
+        "Custom URL: " .. (config.CUSTOM_COMPLETION_URL ~= "" and config.CUSTOM_COMPLETION_URL or "Not set"),
+        "Edit Configuration",
+        "Cancel"
+    }
+    
+    local button, choice = hs.dialog.chooseFromList(configChoices, "Refinify Configuration", "Select option:")
+    
+    if button == "OK" and choice then
+        if choice == 11 then -- "Edit Configuration"
+            showDetailedConfigDialog()
+        elseif choice == 12 then -- "Cancel"
             return false
+        else
+            -- Show current value for selected option
+            local optionNames = {"API Key", "Endpoint", "API Version", "Model", "Max Tokens", "Temperature", "Top P", "Frequency Penalty", "Presence Penalty", "Custom URL"}
+            local currentValues = {currentApiKey, config.OPENAI_ENDPOINT, config.OPENAI_API_VERSION, config.OPENAI_MODEL, tostring(config.MAX_TOKENS), string.format("%.2f", config.TEMPERATURE), string.format("%.2f", config.TOP_P), string.format("%.1f", config.FREQUENCY_PENALTY), string.format("%.1f", config.PRESENCE_PENALTY), config.CUSTOM_COMPLETION_URL}
+            
+            local button2, result = hs.dialog.textPrompt("Edit " .. optionNames[choice],
+                "Current value: " .. currentValues[choice] .. "\nEnter new value:", currentValues[choice], "Save", "Cancel")
+            
+            if button2 == "Save" and result then
+                updateConfigValue(choice, result)
+            end
         end
     end
     return false
+end
+
+-- Helper function to update specific configuration values
+function updateConfigValue(choice, newValue)
+    local optionNames = {"OPENAI_API_KEY", "OPENAI_ENDPOINT", "OPENAI_API_VERSION", "OPENAI_MODEL", "MAX_TOKENS", "TEMPERATURE", "TOP_P", "FREQUENCY_PENALTY", "PRESENCE_PENALTY", "CUSTOM_COMPLETION_URL"}
+    local optionName = optionNames[choice]
+    
+    -- Validate numeric values
+    if choice >= 5 and choice <= 9 then
+        local numValue = tonumber(newValue)
+        if not numValue then
+            hs.alert.show("Error: Invalid numeric value for " .. optionName)
+            return false
+        end
+        newValue = tostring(numValue)
+    end
+    
+    -- Update the config
+    if optionName == "OPENAI_API_KEY" then
+        config.OPENAI_API_KEY = newValue
+    elseif optionName == "OPENAI_ENDPOINT" then
+        config.OPENAI_ENDPOINT = newValue
+    elseif optionName == "OPENAI_API_VERSION" then
+        config.OPENAI_API_VERSION = newValue
+    elseif optionName == "OPENAI_MODEL" then
+        config.OPENAI_MODEL = newValue
+    elseif optionName == "MAX_TOKENS" then
+        config.MAX_TOKENS = tonumber(newValue)
+    elseif optionName == "TEMPERATURE" then
+        config.TEMPERATURE = tonumber(newValue)
+    elseif optionName == "TOP_P" then
+        config.TOP_P = tonumber(newValue)
+    elseif optionName == "FREQUENCY_PENALTY" then
+        config.FREQUENCY_PENALTY = tonumber(newValue)
+    elseif optionName == "PRESENCE_PENALTY" then
+        config.PRESENCE_PENALTY = tonumber(newValue)
+    elseif optionName == "CUSTOM_COMPLETION_URL" then
+        config.CUSTOM_COMPLETION_URL = newValue
+    end
+    
+    -- Save configuration
+    return saveConfiguration()
+end
+
+-- Detailed configuration dialog similar to Windows AHK
+function showDetailedConfigDialog()
+    local currentApiKey = config.readAPIKey() or ""
+    
+    -- Create a multi-step configuration process
+    local steps = {
+        {title = "API Configuration", 
+         fields = {
+             {name = "OPENAI_API_KEY", label = "[Mandatory] API Key:", value = currentApiKey, password = true},
+             {name = "OPENAI_ENDPOINT", label = "[Mandatory] Endpoint URL:", value = config.OPENAI_ENDPOINT},
+             {name = "OPENAI_API_VERSION", label = "[Must be empty for OpenAI] API Version:", value = config.OPENAI_API_VERSION},
+             {name = "OPENAI_MODEL", label = "[Mandatory] OpenAI Model:", value = config.OPENAI_MODEL}
+         }},
+        {title = "Advanced Settings",
+         fields = {
+             {name = "CUSTOM_COMPLETION_URL", label = "Custom Completion URL:", value = config.CUSTOM_COMPLETION_URL},
+             {name = "MAX_TOKENS", label = "Max Tokens:", value = tostring(config.MAX_TOKENS)},
+             {name = "TEMPERATURE", label = "Temperature:", value = string.format("%.2f", config.TEMPERATURE)},
+             {name = "TOP_P", label = "Top P:", value = string.format("%.2f", config.TOP_P)},
+             {name = "FREQUENCY_PENALTY", label = "Frequency Penalty:", value = string.format("%.1f", config.FREQUENCY_PENALTY)},
+             {name = "PRESENCE_PENALTY", label = "Presence Penalty:", value = string.format("%.1f", config.PRESENCE_PENALTY)}
+         }}
+    }
+    
+    local currentStep = 1
+    
+    local function showStep(stepIndex)
+        if stepIndex > #steps then
+            -- All steps completed, save configuration
+            saveConfiguration()
+            return
+        end
+        
+        local step = steps[stepIndex]
+        local choices = {"Next", "Previous", "Cancel"}
+        if stepIndex == #steps then
+            choices = {"Save", "Previous", "Cancel"}
+        end
+        
+        local fieldChoices = {}
+        for i, field in ipairs(step.fields) do
+            local displayValue = field.value
+            if field.password and field.value ~= "" then
+                displayValue = string.sub(field.value, 1, 1) .. "xxx" .. string.sub(field.value, -1)
+            end
+            table.insert(fieldChoices, field.label .. " " .. displayValue)
+        end
+        
+        local button, choice = hs.dialog.chooseFromList(fieldChoices, step.title, table.concat(choices, ", "))
+        
+        if button == "OK" and choice then
+            if choice <= #step.fields then
+                -- Edit field
+                local field = step.fields[choice]
+                local button2, result = hs.dialog.textPrompt("Edit " .. field.label,
+                    "Enter new value:", field.value, "OK", "Cancel")
+                
+                if button2 == "OK" and result then
+                    -- Update the field value
+                    field.value = result
+                    -- Update config object
+                    if field.name == "OPENAI_API_KEY" then
+                        config.OPENAI_API_KEY = result
+                    elseif field.name == "OPENAI_ENDPOINT" then
+                        config.OPENAI_ENDPOINT = result
+                    elseif field.name == "OPENAI_API_VERSION" then
+                        config.OPENAI_API_VERSION = result
+                    elseif field.name == "OPENAI_MODEL" then
+                        config.OPENAI_MODEL = result
+                    elseif field.name == "CUSTOM_COMPLETION_URL" then
+                        config.CUSTOM_COMPLETION_URL = result
+                    elseif field.name == "MAX_TOKENS" then
+                        config.MAX_TOKENS = tonumber(result) or config.MAX_TOKENS
+                    elseif field.name == "TEMPERATURE" then
+                        config.TEMPERATURE = tonumber(result) or config.TEMPERATURE
+                    elseif field.name == "TOP_P" then
+                        config.TOP_P = tonumber(result) or config.TOP_P
+                    elseif field.name == "FREQUENCY_PENALTY" then
+                        config.FREQUENCY_PENALTY = tonumber(result) or config.FREQUENCY_PENALTY
+                    elseif field.name == "PRESENCE_PENALTY" then
+                        config.PRESENCE_PENALTY = tonumber(result) or config.PRESENCE_PENALTY
+                    end
+                end
+                -- Show the same step again with updated values
+                showStep(stepIndex)
+            elseif choice == #fieldChoices + 1 then -- Next/Save
+                showStep(stepIndex + 1)
+            elseif choice == #fieldChoices + 2 then -- Previous
+                if stepIndex > 1 then
+                    showStep(stepIndex - 1)
+                else
+                    showStep(stepIndex)
+                end
+            end
+        end
+    end
+    
+    showStep(1)
+end
+
+-- Save configuration with backup (equivalent to ConfigSave in Windows AHK)
+function saveConfiguration()
+    local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)")
+    local envFile = scriptDir .. "../.env-secrets"
+    
+    -- Create backup (equivalent to Windows FileCopy)
+    local backupFile = envFile .. ".bak"
+    local backupExists = io.open(envFile, "r")
+    if backupExists then
+        backupExists:close()
+        local backupContent = io.open(envFile, "r"):read("*all")
+        local backupWrite = io.open(backupFile, "w")
+        if backupWrite then
+            backupWrite:write(backupContent)
+            backupWrite:close()
+        end
+    end
+    
+    -- Save new configuration
+    local file = io.open(envFile, "w")
+    if file then
+        local envContent = "OPENAI_API_KEY=" .. (config.OPENAI_API_KEY or "") .. "\n" ..
+            "OPENAI_ENDPOINT=" .. config.OPENAI_ENDPOINT .. "\n" ..
+            "OPENAI_API_VERSION=" .. config.OPENAI_API_VERSION .. "\n" ..
+            "OPENAI_MODEL=" .. config.OPENAI_MODEL .. "\n" ..
+            "CUSTOM_COMPLETION_URL=" .. config.CUSTOM_COMPLETION_URL .. "\n" ..
+            "MAX_TOKENS=" .. config.MAX_TOKENS .. "\n" ..
+            "TEMPERATURE=" .. string.format("%.2f", config.TEMPERATURE) .. "\n" ..
+            "TOP_P=" .. string.format("%.2f", config.TOP_P) .. "\n" ..
+            "FREQUENCY_PENALTY=" .. string.format("%.1f", config.FREQUENCY_PENALTY) .. "\n" ..
+            "PRESENCE_PENALTY=" .. string.format("%.1f", config.PRESENCE_PENALTY) .. "\n"
+
+        file:write(envContent)
+        file:close()
+
+        -- Reload configuration
+        config.readAPIKey()
+
+        hs.alert.show("Configuration saved successfully!")
+        return true
+    else
+        hs.alert.show("Error: Could not save configuration file")
+        return false
+    end
 end
 
 -- Initialize keyboard shortcuts and setup (equivalent to AutoHotkey hotkey definitions)

@@ -22,7 +22,9 @@ Refinify takes the text from the currently active edit box in any application—
   - `Ctrl+Alt+K` (`⌘⌥K` on mac) will show the configuration dialog to update API settings.
 - Wait for 5 seconds and see the refined text appended to your original message.
 
-**Note**: If your configuration is missing or incomplete (no API key set), the configuration dialog will automatically appear instead of performing the refinement action. Configure your API key first, then try the refinement again.
+**Note**: If your configuration is missing or incomplete (no API key set), the configuration dialog will automatically appear instead of performing the refinement action. Configure your API key and other settings first, then try the refinement again.
+
+**Configuration dialog now allows editing all parameters (API key, endpoint, model, etc.) on both Windows and macOS. The dialog validates numeric fields and creates a backup of your previous configuration.**
 
 ## Example
 ![Before and After](docs/before-after.png)
@@ -81,7 +83,7 @@ cp .env-secrets-corporate.template .env-secrets
 
 #### Option 2: Use Configuration Dialog
 
-Both platforms include a configuration dialog accessible via **Ctrl+Alt+K** (Windows) or **⌘⌥K** (macOS). This is the recommended method as it automatically creates the `.env-secrets` file with proper formatting.
+Both platforms include a comprehensive configuration dialog accessible via **Ctrl+Alt+K** (Windows) or **⌘⌥K** (macOS). This dialog allows you to edit all configuration parameters (API key, endpoint, model, etc.), validates numeric fields, and automatically creates a backup of your previous configuration. This is the recommended method as it ensures your `.env-secrets` file is always properly formatted and up to date.
 
 
 ### Configuration Parameters
@@ -160,10 +162,10 @@ brew install --cask hammerspoon
    - Allow accessibility permissions when prompted
    - Reload configuration: `⌘⇧R` in Hammerspoon console
 
-4. **Configure API Key**
+4. **Configure API Key and Settings**
    - Press `⌘⌥K` to open the configuration dialog
-   - Enter your OpenAI API key
-   - The `.env-secrets` file will be created automatically in the project root
+   - Edit your OpenAI API key and all other settings (endpoint, model, etc.)
+   - The `.env-secrets` file will be created automatically in the project root, with a backup of the previous version
 
 5. **Usage**
    - Place cursor in any text field (Slack, Mail, TextEdit, etc.)
@@ -191,7 +193,7 @@ git pull
 - **No response**: Check that your API key is correctly set in `~/refinify/.env-secrets`
 - **Accessibility errors**: Make sure Hammerspoon has accessibility permissions in System Preferences
 - **Module not found**: Ensure `refinify.lua` is linked and your init.lua includes `require("refinify")`
-- **API errors**: Check the Hammerspoon console for detailed error messages
+- **API errors**: Check the Hammerspoon console for detailed error messages. If the OpenAI API call fails, a detailed error message will be shown, including your current configuration (API key, endpoint, version, and model) to help with troubleshooting.
 - **Configuration dialog appears**: If the configuration dialog shows up instead of performing refinement, it means your `.env-secrets` file is missing or the API key is empty. Configure it first, then try again.
 
 ## Project Structure
