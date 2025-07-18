@@ -25,16 +25,9 @@
                       Type="directory" />
     </Property>
 
-    <!-- UI for AutoHotkey installation prompt -->
-    <UI>
-      <UIRef Id="WixUI_InstallDir" />
-      <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
-      
-      <!-- Custom dialog for AutoHotkey -->
-      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="AutoHotkeyDlg" Order="1">1</Publish>
-      <Publish Dialog="AutoHotkeyDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg">1</Publish>
-      <Publish Dialog="AutoHotkeyDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg">1</Publish>
-    </UI>
+    <!-- UI Reference -->
+    <UIRef Id="WixUI_InstallDir" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
 
     <!-- Features -->
     <Feature Id="ProductFeature" Title="Refinify" Level="1">
@@ -111,22 +104,8 @@
       <Condition>RUNONSTARTUP</Condition>
     </Component>
 
-    <!-- Custom Actions -->
-    <Binary Id="InstallAHK" SourceFile="install-ahk.ps1" />
-    <CustomAction Id="DownloadAHK" 
-                  BinaryKey="InstallAHK" 
-                  ExeCommand="powershell -ExecutionPolicy Bypass -File install-ahk.ps1" 
-                  Execute="deferred" 
-                  Return="check" />
-    
-    <InstallExecuteSequence>
-      <Custom Action="DownloadAHK" After="InstallFiles">NOT AUTOHOTKEYV2 AND INSTALLAUTOHOTKEY="1"</Custom>
-    </InstallExecuteSequence>
-
     <!-- Properties for checkboxes -->
     <Property Id="INSTALLDESKTOPSHORTCUT" Value="1" />
     <Property Id="RUNONSTARTUP" Value="1" />
-    <Property Id="INSTALLAUTOHOTKEY" Value="1" />
-    <Property Id="LAUNCHAFTERINSTALL" Value="1" />
   </Product>
 </Wix>

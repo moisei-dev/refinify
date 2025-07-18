@@ -11,6 +11,10 @@ permissions:
 jobs:
   create-release:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag_name: ${{ steps.version.outputs.tag_name }}
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
     
     steps:
       - name: Checkout code
@@ -124,37 +128,6 @@ jobs:
           echo "MAC_ARCHIVE=${MAC_ARCHIVE}" >> $GITHUB_ENV
           echo "Created Mac archive: ${MAC_ARCHIVE}"
       
-      - name: Build Windows MSI Installer
-        run: |
-          # Install WiX Toolset
-          dotnet tool install --global wix
-          
-          # Build MSI installer
-          cd installers/windows
-          wix build refinify.wxs -d Version=${{ steps.version.outputs.version }} -o refinify-windows-${{ steps.version.outputs.version }}-installer.msi
-          cd ../..
-          
-          echo "WINDOWS_INSTALLER=installers/windows/refinify-windows-${{ steps.version.outputs.version }}-installer.msi" >> $GITHUB_ENV
-          echo "Created Windows installer"
-      
-      - name: Build Mac DMG Installer
-        run: |
-          # Build Mac app
-          cd installers/mac
-          ./build-mac-app.sh ${{ steps.version.outputs.version }}
-          
-          # Install create-dmg
-          npm install -g create-dmg
-          
-          # Create DMG
-          create-dmg Refinify.app . || true
-          
-          # Rename DMG to versioned name
-          mv Refinify*.dmg refinify-mac-${{ steps.version.outputs.version }}-installer.dmg
-          cd ../..
-          
-          echo "MAC_INSTALLER=installers/mac/refinify-mac-${{ steps.version.outputs.version }}-installer.dmg" >> $GITHUB_ENV
-          echo "Created Mac installer"
       
       - name: Create GitHub Release
         id: create_release
@@ -202,23 +175,68 @@ jobs:
           asset_path: ./${{ env.MAC_ARCHIVE }}
           asset_name: ${{ env.MAC_ARCHIVE }}
           asset_content_type: application/zip
+  
+  build-windows-installer:
+    needs: create-release
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install WiX v3 Toolset
+        run: |
+          # Download and install WiX v3
+          Invoke-WebRequest -Uri https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip -OutFile wix.zip
+          Expand-Archive -Path wix.zip -DestinationPath "$env:USERPROFILE\wix"
+          echo "$env:USERPROFILE\wix" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      
+      - name: Build Windows MSI Installer
+        run: |
+          cd installers/windows
+          & candle refinify.wxs -dVersion=${{ needs.create-release.outputs.version }}
+          & light refinify.wixobj -ext WixUIExtension -ext WixUtilExtension -o refinify-windows-${{ needs.create-release.outputs.version }}-installer.msi
+          cd ../..
       
       - name: Upload Windows Installer
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./${{ env.WINDOWS_INSTALLER }}
-          asset_name: refinify-windows-${{ steps.version.outputs.version }}-installer.msi
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./installers/windows/refinify-windows-${{ needs.create-release.outputs.version }}-installer.msi
+          asset_name: refinify-windows-${{ needs.create-release.outputs.version }}-installer.msi
           asset_content_type: application/x-msi
+  
+  build-mac-installer:
+    needs: create-release
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Build Mac App
+        run: |
+          cd installers/mac
+          chmod +x build-mac-app.sh
+          ./build-mac-app.sh ${{ needs.create-release.outputs.version }}
+      
+      - name: Install create-dmg
+        run: npm install -g create-dmg
+      
+      - name: Create DMG
+        run: |
+          cd installers/mac
+          create-dmg Refinify.app . || true
+          mv Refinify*.dmg refinify-mac-${{ needs.create-release.outputs.version }}-installer.dmg
       
       - name: Upload Mac Installer
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./${{ env.MAC_INSTALLER }}
-          asset_name: refinify-mac-${{ steps.version.outputs.version }}-installer.dmg
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./installers/mac/refinify-mac-${{ needs.create-release.outputs.version }}-installer.dmg
+          asset_name: refinify-mac-${{ needs.create-release.outputs.version }}-installer.dmg
           asset_content_type: application/x-apple-diskimage
