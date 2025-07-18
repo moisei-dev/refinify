@@ -20,42 +20,56 @@ Download the latest release for your platform from the [GitHub Releases page](ht
 
 ### Windows Installation
 
-1. **Download** `refinify-windows-X.X.X.zip` from the [latest release](https://github.com/moisei-dev/refinify/releases/latest)
-2. **Extract** the zip file to your preferred location (e.g., `C:\Users\your-username\`)
-3. **Install AutoHotkey v2** from https://www.autohotkey.com/download/ahk-v2.exe
-4. **Run Refinify**:
-   - Navigate to `refinify/refinify-ahk/` directory
-   - Double-click `refinify.ahk`
-   - Look for the green "H" icon in the system tray
-5. **Configure API Key**:
+#### Option 1: Installer (Recommended)
+1. **Download** `refinify-windows-X.X.X-installer.msi` from the [latest release](https://github.com/moisei-dev/refinify/releases/latest)
+2. **Run the installer**:
+   - Double-click the MSI file
+   - If AutoHotkey v2 is not installed, the installer will offer to download and install it
+   - Choose installation options:
+     - ✅ Create desktop shortcut
+     - ✅ Run on startup
+   - Click "Install"
+3. **Configure API Key**:
+   - After installation, Refinify will start automatically
    - Press `Ctrl+Alt+K` to open the configuration dialog
    - Enter your OpenAI API key and settings
    - Click "SAVE"
 
+#### Option 2: Portable Archive
+1. **Download** `refinify-windows-X.X.X.zip` from the [latest release](https://github.com/moisei-dev/refinify/releases/latest)
+2. **Extract** the zip file to your preferred location
+3. **Install AutoHotkey v2** from https://www.autohotkey.com/download/ahk-v2.exe
+4. **Run Refinify**: Double-click `refinify/refinify-ahk/refinify.ahk`
+5. **Configure**: Press `Ctrl+Alt+K` to set up your API key
+
 ### macOS Installation
 
-1. **Download** `refinify-mac-X.X.X.zip` from the [latest release](https://github.com/moisei-dev/refinify/releases/latest)
-2. **Extract** the zip file to your home directory (`~/`)
-3. **Install Hammerspoon**:
-   ```bash
-   brew install --cask hammerspoon
-   ```
-4. **Set up Refinify**:
-   ```bash
-   # Create Hammerspoon config directory
-   mkdir -p ~/.hammerspoon
-   
-   # Link the refinify file
-   ln -s ~/refinify/refinify-hammerspoon/refinify.lua ~/.hammerspoon/refinify.lua
-   
-   # Add to Hammerspoon config
-   echo 'require("refinify")' >> ~/.hammerspoon/init.lua
-   ```
-5. **Configure API Key**:
-   - Launch Hammerspoon and allow accessibility permissions
+#### Option 1: Installer (Recommended)
+1. **Download** `refinify-mac-X.X.X-installer.dmg` from the [latest release](https://github.com/moisei-dev/refinify/releases/latest)
+2. **Install the app**:
+   - Open the DMG file
+   - Drag Refinify.app to Applications folder
+   - Launch Refinify from Applications
+3. **First run setup**:
+   - The app will check for Hammerspoon and offer to install it if needed
+   - It will automatically create the necessary symlinks and configuration
+   - Grant accessibility permissions when prompted
+4. **Configure API Key**:
    - Press `⌘⌥K` to open the configuration dialog
    - Enter your OpenAI API key and settings
    - Click "Save"
+
+#### Option 2: Portable Archive
+1. **Download** `refinify-mac-X.X.X.zip` from the [latest release](https://github.com/moisei-dev/refinify/releases/latest)
+2. **Extract** to your home directory (`~/`)
+3. **Install Hammerspoon**: `brew install --cask hammerspoon`
+4. **Set up manually**:
+   ```bash
+   mkdir -p ~/.hammerspoon
+   ln -s ~/refinify/refinify-hammerspoon/refinify.lua ~/.hammerspoon/refinify.lua
+   echo 'require("refinify")' >> ~/.hammerspoon/init.lua
+   ```
+5. **Configure**: Launch Hammerspoon and press `⌘⌥K`
 
 ## How to use Refinify
 - Place your cursor in the edit box with the text you want to refine. Slack, Gmail, etc.

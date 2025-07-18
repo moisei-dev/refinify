@@ -124,6 +124,38 @@ jobs:
           echo "MAC_ARCHIVE=${MAC_ARCHIVE}" >> $GITHUB_ENV
           echo "Created Mac archive: ${MAC_ARCHIVE}"
       
+      - name: Build Windows MSI Installer
+        run: |
+          # Install WiX Toolset
+          dotnet tool install --global wix
+          
+          # Build MSI installer
+          cd installers/windows
+          wix build refinify.wxs -d Version=${{ steps.version.outputs.version }} -o refinify-windows-${{ steps.version.outputs.version }}-installer.msi
+          cd ../..
+          
+          echo "WINDOWS_INSTALLER=installers/windows/refinify-windows-${{ steps.version.outputs.version }}-installer.msi" >> $GITHUB_ENV
+          echo "Created Windows installer"
+      
+      - name: Build Mac DMG Installer
+        run: |
+          # Build Mac app
+          cd installers/mac
+          ./build-mac-app.sh ${{ steps.version.outputs.version }}
+          
+          # Install create-dmg
+          npm install -g create-dmg
+          
+          # Create DMG
+          create-dmg Refinify.app . || true
+          
+          # Rename DMG to versioned name
+          mv Refinify*.dmg refinify-mac-${{ steps.version.outputs.version }}-installer.dmg
+          cd ../..
+          
+          echo "MAC_INSTALLER=installers/mac/refinify-mac-${{ steps.version.outputs.version }}-installer.dmg" >> $GITHUB_ENV
+          echo "Created Mac installer"
+      
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
@@ -140,8 +172,14 @@ jobs:
             **Timestamp**: ${{ github.event.head_commit.timestamp }}
             
             ### Downloads
-            - **Windows**: refinify-windows-${{ steps.version.outputs.version }}.zip
-            - **Mac**: refinify-mac-${{ steps.version.outputs.version }}.zip
+            
+            #### Installers (Recommended)
+            - **Windows Installer**: refinify-windows-${{ steps.version.outputs.version }}-installer.msi
+            - **Mac Installer**: refinify-mac-${{ steps.version.outputs.version }}-installer.dmg
+            
+            #### Portable Archives
+            - **Windows Archive**: refinify-windows-${{ steps.version.outputs.version }}.zip
+            - **Mac Archive**: refinify-mac-${{ steps.version.outputs.version }}.zip
           draft: false
           prerelease: false
       
@@ -164,3 +202,23 @@ jobs:
           asset_path: ./${{ env.MAC_ARCHIVE }}
           asset_name: ${{ env.MAC_ARCHIVE }}
           asset_content_type: application/zip
+      
+      - name: Upload Windows Installer
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./${{ env.WINDOWS_INSTALLER }}
+          asset_name: refinify-windows-${{ steps.version.outputs.version }}-installer.msi
+          asset_content_type: application/x-msi
+      
+      - name: Upload Mac Installer
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./${{ env.MAC_INSTALLER }}
+          asset_name: refinify-mac-${{ steps.version.outputs.version }}-installer.dmg
+          asset_content_type: application/x-apple-diskimage
