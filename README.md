@@ -14,6 +14,49 @@ Both platforms provide identical functionality with platform-appropriate keyboar
 
 Refinify takes the text from the currently active edit box in any application—such as `Slack`, `Gmail`, `Notepad`, etc. It sends your text to an AI model, receives a refined version, and appends it to the end of your original text. This way, you can compare both versions and choose which message to use.
 
+## Installation
+
+Download the latest release for your platform from the [GitHub Releases page](https://github.com/moisei-dev/refinify/releases/latest).
+
+### Windows Installation
+
+1. **Download** `refinify-windows-X.X.X.zip` from the [latest release](https://github.com/moisei-dev/refinify/releases/latest)
+2. **Extract** the zip file to your preferred location (e.g., `C:\Users\your-username\`)
+3. **Install AutoHotkey v2** from https://www.autohotkey.com/download/ahk-v2.exe
+4. **Run Refinify**:
+   - Navigate to `refinify/refinify-ahk/` directory
+   - Double-click `refinify.ahk`
+   - Look for the green "H" icon in the system tray
+5. **Configure API Key**:
+   - Press `Ctrl+Alt+K` to open the configuration dialog
+   - Enter your OpenAI API key and settings
+   - Click "SAVE"
+
+### macOS Installation
+
+1. **Download** `refinify-mac-X.X.X.zip` from the [latest release](https://github.com/moisei-dev/refinify/releases/latest)
+2. **Extract** the zip file to your home directory (`~/`)
+3. **Install Hammerspoon**:
+   ```bash
+   brew install --cask hammerspoon
+   ```
+4. **Set up Refinify**:
+   ```bash
+   # Create Hammerspoon config directory
+   mkdir -p ~/.hammerspoon
+   
+   # Link the refinify file
+   ln -s ~/refinify/refinify-hammerspoon/refinify.lua ~/.hammerspoon/refinify.lua
+   
+   # Add to Hammerspoon config
+   echo 'require("refinify")' >> ~/.hammerspoon/init.lua
+   ```
+5. **Configure API Key**:
+   - Launch Hammerspoon and allow accessibility permissions
+   - Press `⌘⌥K` to open the configuration dialog
+   - Enter your OpenAI API key and settings
+   - Click "Save"
+
 ## How to use Refinify
 - Place your cursor in the edit box with the text you want to refine. Slack, Gmail, etc.
 - Right before sending the message press one of the keystrokes below to refine your text.
@@ -97,89 +140,6 @@ Both platforms include a comprehensive configuration dialog accessible via **Ctr
 
 **Security Note**: Never commit the `.env-secrets` file to version control. It's already included in `.gitignore`.
 
-## Installation
-
-Choose your platform for detailed installation instructions:
-
-### Windows Installation (AutoHotkey)
-
-#### Prerequisites
-- Install AutoHotkey v2 from https://www.autohotkey.com/download/ahk-v2.exe
-
-#### Setup Steps
-1. **Clone the repository** to `C:\Users\your-username\refinify` (recommended):
-   ```bash
-   git clone https://github.com/moisei-dev/refinify.git
-   ```
-
-2. **Run Refinify**
-   - Browse to `refinify-ahk/` directory in Windows Explorer
-   - Double-click `refinify.ahk` file
-   - Notice the green "H" icon in the system tray (script is running)
-
-3. **Configure API Key**
-   - Press `Ctrl+Alt+K` to open the configuration dialog
-   - Enter your OpenAI API key and other settings
-   - Click "SAVE" to create the `.env-secrets` file automatically
-
-#### Getting Updates
-Since the file is linked to the git repository:
-```bash
- cd refinify
-git pull
-# Reload Hammerspoon: Cmd+Shift+R
-```
-
-
-### macOS Installation (Hammerspoon)
-
-#### Prerequisites
-```bash
-brew install --cask hammerspoon
-```
-
-#### Setup Steps
-1. **Clone and link the Refinify file**
-   ```bash
-   # Clone the repo
-   git clone https://github.com/moisei-dev/refinify.git ~/refinify
-
-   # Create Hammerspoon config directory if needed
-   mkdir -p ~/.hammerspoon
-
-   # Link the refinify file
-   ln -s ~/refinify/refinify-hammerspoon/refinify.lua ~/.hammerspoon/refinify.lua
-   ```
-
-2. **Add to Hammerspoon configuration**
-   ```bash
-   # This command works for both new and existing init.lua files
-   touch ~/.hammerspoon/init.lua && grep -q 'require("refinify")' ~/.hammerspoon/init.lua || echo 'require("refinify")' >> ~/.hammerspoon/init.lua
-   ```
-
-3. **Start/Reload Hammerspoon**
-   - Launch Hammerspoon from Applications
-   - Allow accessibility permissions when prompted
-   - Reload configuration: `⌘⇧R` in Hammerspoon console
-
-4. **Configure API Key and Settings**
-   - Press `⌘⌥K` to open the configuration dialog
-   - Edit your OpenAI API key and all other settings (endpoint, model, etc.)
-   - The `.env-secrets` file will be created automatically in the project root, with a backup of the previous version
-
-5. **Usage**
-   - Place cursor in any text field (Slack, Mail, TextEdit, etc.)
-   - Press `⌘⌥P` (replace) or `⌘⌥R` (append)
-   - Press `⌘⌥K` for configuration dialog
-   - Wait for AI to refine your text
-
-#### Getting Updates
-Since the file is linked to the git repository:
-```bash
-cd ~/refinify
-git pull
-# Reload Hammerspoon: ⌘⇧R
-```
 
 ## Troubleshooting
 
