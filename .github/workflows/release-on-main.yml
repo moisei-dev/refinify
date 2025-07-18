@@ -55,8 +55,8 @@ jobs:
           .env.*.local
           EOF
           
-          # Create the archive
-          zip -r "${ARCHIVE_NAME}" . -x@.archive-exclude
+          # Create the archive excluding .git directory and files from exclusion list
+          zip -r "${ARCHIVE_NAME}" . -x '.git/*' -x@.archive-exclude
           
           # Clean up
           rm .archive-exclude
