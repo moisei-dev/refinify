@@ -19,10 +19,30 @@
     <!-- Check for AutoHotkey v2 -->
     <Property Id="AUTOHOTKEYV2">
       <RegistrySearch Id="AutoHotkeyV2Search" 
+                      Root="HKLM" 
+                      Key="SOFTWARE\AutoHotkey" 
+                      Name="InstallDir" 
+                      Type="directory" />
+    </Property>
+    
+    <!-- Also check HKCU -->
+    <Property Id="AUTOHOTKEYV2_USER">
+      <RegistrySearch Id="AutoHotkeyV2SearchUser" 
                       Root="HKCU" 
                       Key="Software\AutoHotkey" 
                       Name="InstallDir" 
                       Type="directory" />
+    </Property>
+    
+    <!-- Check for AutoHotkey v2 executable -->
+    <Property Id="AUTOHOTKEYV2EXE">
+      <DirectorySearch Id="ProgramFilesSearch" Path="[ProgramFilesFolder]">
+        <DirectorySearch Id="AutoHotkeySearch" Path="AutoHotkey">
+          <DirectorySearch Id="AutoHotkeyV2Search" Path="v2">
+            <FileSearch Id="AutoHotkeyExeSearch" Name="AutoHotkey.exe" />
+          </DirectorySearch>
+        </DirectorySearch>
+      </DirectorySearch>
     </Property>
 
     <!-- UI Reference -->
@@ -100,5 +120,32 @@
     <!-- Properties for checkboxes -->
     <Property Id="INSTALLDESKTOPSHORTCUT" Value="1" />
     <Property Id="RUNONSTARTUP" Value="1" />
+    <Property Id="LAUNCHAFTERINSTALL" Value="1" />
+    
+    <!-- Custom Actions -->
+    <Binary Id="CheckAndInstallAHK" SourceFile="CheckAndInstallAHK.vbs" />
+    
+    <CustomAction Id="CheckAHK" 
+                  BinaryKey="CheckAndInstallAHK" 
+                  VBScriptCall="CheckAndInstallAutoHotkey" 
+                  Execute="immediate" 
+                  Return="check" />
+    
+    <CustomAction Id="LaunchRefinify" 
+                  Directory="RefinifyAhkFolder" 
+                  ExeCommand="[SystemFolder]cmd.exe /c start refinify.ahk" 
+                  Execute="immediate" 
+                  Return="asyncNoWait" />
+    
+    <!-- Install Sequence -->
+    <InstallExecuteSequence>
+      <Custom Action="CheckAHK" After="CostFinalize">NOT Installed</Custom>
+      <Custom Action="LaunchRefinify" After="InstallFinalize">NOT Installed AND LAUNCHAFTERINSTALL</Custom>
+    </InstallExecuteSequence>
+    
+    <!-- UI Sequence -->
+    <InstallUISequence>
+      <Custom Action="CheckAHK" After="CostFinalize">NOT Installed</Custom>
+    </InstallUISequence>
   </Product>
 </Wix>
