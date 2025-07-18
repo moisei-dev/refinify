@@ -194,8 +194,9 @@ jobs:
       - name: Build Windows MSI Installer
         run: |
           cd installers/windows
-          & candle refinify.wxs -dVersion=${{ needs.create-release.outputs.version }}
-          & light refinify.wixobj -ext WixUIExtension -ext WixUtilExtension -o refinify-windows-${{ needs.create-release.outputs.version }}-installer.msi
+          $version = "${{ needs.create-release.outputs.version }}"
+          & candle refinify.wxs "-dVersion=$version"
+          & light refinify.wixobj -ext WixUIExtension -ext WixUtilExtension -o "refinify-windows-$version-installer.msi"
           cd ../..
       
       - name: Upload Windows Installer
