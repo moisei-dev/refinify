@@ -67,16 +67,20 @@
       <Component Id="MainFiles" Guid="B1C2D3E4-5F6A-7B8C-9D0E-1F2A3B4C5D6E">
         <File Id="README" Source="..\..\README.md" />
         <File Id="SystemPrompt" Source="..\..\system-prompt-completion.md" />
+        <RegistryValue Root="HKCU" Key="Software\MoiseiDev\Refinify" Name="InstallPath" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
+        <RemoveFolder Id="RemoveINSTALLFOLDER" Directory="INSTALLFOLDER" On="uninstall" />
+        <RemoveFolder Id="RemoveMoiseiDevFolder" Directory="MoiseiDevFolder" On="uninstall" />
       </Component>
-      
     </ComponentGroup>
 
     <!-- AutoHotkey files -->
     <ComponentGroup Id="AhkComponents" Directory="RefinifyAhkFolder">
       <Component Id="RefinifyAhk" Guid="D3E4F5A6-7B8C-9D0E-1F2A-3B4C5D6E7F8A">
-        <File Id="RefinifyAhkFile" Source="..\..\refinify-ahk\refinify.ahk" KeyPath="yes" />
+        <File Id="RefinifyAhkFile" Source="..\..\refinify-ahk\refinify.ahk" />
         <File Id="RefinifyGeneric" Source="..\..\refinify-ahk\refinify-generic.ahk" />
         <File Id="JXON" Source="..\..\refinify-ahk\_JXON.ahk" />
+        <RegistryValue Root="HKCU" Key="Software\MoiseiDev\Refinify" Name="AhkInstalled" Type="integer" Value="1" KeyPath="yes" />
+        <RemoveFolder Id="RemoveRefinifyAhkFolder" Directory="RefinifyAhkFolder" On="uninstall" />
       </Component>
     </ComponentGroup>
 
@@ -99,7 +103,6 @@
                 Description="AI-powered text refinement"
                 Target="[INSTALLFOLDER]refinify-ahk\refinify.ahk"
                 WorkingDirectory="INSTALLFOLDER" />
-      <RemoveFolder Id="StartupFolder" On="uninstall" />
       <RegistryValue Root="HKCU" Key="Software\MoiseiDev\Refinify" Name="StartupShortcut" Type="integer" Value="1" KeyPath="yes" />
       <Condition>RUNONSTARTUP</Condition>
     </Component>
