@@ -18,13 +18,44 @@ jobs:
         with:
           fetch-depth: 0
       
-      - name: Generate version tag
+      - name: Get latest tag and determine version bump
         id: version
         run: |
-          # Generate timestamp-based tag
-          TAG_NAME="release-$(date -u +'%Y%m%d-%H%M%S')"
-          echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
-          echo "Generated tag: ${TAG_NAME}"
+          # Get the latest tag
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Latest tag: $LATEST_TAG"
+          
+          # Extract version numbers
+          VERSION=${LATEST_TAG#v}
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          
+          # Get commit messages since last tag
+          if [ "$LATEST_TAG" = "v0.0.0" ]; then
+            COMMITS=$(git log --pretty=format:"%s" HEAD)
+          else
+            COMMITS=$(git log --pretty=format:"%s" ${LATEST_TAG}..HEAD)
+          fi
+          
+          # Determine version bump based on commit messages
+          if echo "$COMMITS" | grep -q "\[MAJOR\]"; then
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+            echo "Major version bump detected"
+          elif echo "$COMMITS" | grep -q "\[PATCH\]"; then
+            PATCH=$((PATCH + 1))
+            echo "Patch version bump detected"
+          else
+            MINOR=$((MINOR + 1))
+            PATCH=0
+            echo "Minor version bump (default)"
+          fi
+          
+          # Generate new version
+          NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "tag_name=${NEW_VERSION}" >> $GITHUB_OUTPUT
+          echo "version=${MAJOR}.${MINOR}.${PATCH}" >> $GITHUB_OUTPUT
+          echo "Generated version: ${NEW_VERSION}"
       
       - name: Create and push tag
         run: |
@@ -33,36 +64,59 @@ jobs:
           git tag -a "${{ steps.version.outputs.tag_name }}" -m "Automated release for commit ${{ github.sha }}"
           git push origin "${{ steps.version.outputs.tag_name }}"
       
-      - name: Create source archive
+      - name: Create Windows artifact
         run: |
-          # Create a clean archive excluding unnecessary files
-          ARCHIVE_NAME="${{ steps.version.outputs.tag_name }}-source.zip"
+          # Create Windows-specific archive
+          WINDOWS_ARCHIVE="refinify-windows-${{ steps.version.outputs.version }}.zip"
           
-          # Create exclusion list
-          cat > .archive-exclude << EOF
-          .git
-          .github
-          node_modules
-          *.log
-          *.tmp
-          .DS_Store
-          Thumbs.db
-          dist
-          build
-          coverage
-          .env
-          .env.local
-          .env.*.local
-          EOF
+          # Create temporary directory for Windows files
+          mkdir -p windows-release
           
-          # Create the archive excluding .git directory and files from exclusion list
-          zip -r "${ARCHIVE_NAME}" . -x '.git/*' -x@.archive-exclude
+          # Copy Windows-specific files
+          cp -r refinify-ahk windows-release/
+          cp README.md windows-release/
+          cp system-prompt-completion.md windows-release/
+          
+          # Copy .env-secrets files if they exist
+          find . -maxdepth 1 -name ".env-secrets*" -exec cp {} windows-release/ \; 2>/dev/null || true
+          
+          # Create Windows archive
+          cd windows-release
+          zip -r "../${WINDOWS_ARCHIVE}" .
+          cd ..
           
           # Clean up
-          rm .archive-exclude
+          rm -rf windows-release
           
-          echo "ARCHIVE_NAME=${ARCHIVE_NAME}" >> $GITHUB_ENV
-          echo "Created archive: ${ARCHIVE_NAME}"
+          echo "WINDOWS_ARCHIVE=${WINDOWS_ARCHIVE}" >> $GITHUB_ENV
+          echo "Created Windows archive: ${WINDOWS_ARCHIVE}"
+      
+      - name: Create Mac artifact
+        run: |
+          # Create Mac-specific archive
+          MAC_ARCHIVE="refinify-mac-${{ steps.version.outputs.version }}.zip"
+          
+          # Create temporary directory for Mac files
+          mkdir -p mac-release
+          
+          # Copy Mac-specific files
+          cp -r refinify-hammerspoon mac-release/
+          cp README.md mac-release/
+          cp system-prompt-completion.md mac-release/
+          
+          # Copy .env-secrets files if they exist
+          find . -maxdepth 1 -name ".env-secrets*" -exec cp {} mac-release/ \; 2>/dev/null || true
+          
+          # Create Mac archive
+          cd mac-release
+          zip -r "../${MAC_ARCHIVE}" .
+          cd ..
+          
+          # Clean up
+          rm -rf mac-release
+          
+          echo "MAC_ARCHIVE=${MAC_ARCHIVE}" >> $GITHUB_ENV
+          echo "Created Mac archive: ${MAC_ARCHIVE}"
       
       - name: Create GitHub Release
         id: create_release
@@ -71,22 +125,36 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.version.outputs.tag_name }}
-          release_name: ${{ steps.version.outputs.tag_name }}
+          release_name: Release ${{ steps.version.outputs.version }}
           body: |
-            Automated release for commit ${{ github.sha }}
+            ## Release ${{ steps.version.outputs.version }}
             
             **Commit**: ${{ github.event.head_commit.message }}
             **Author**: ${{ github.event.head_commit.author.name }}
             **Timestamp**: ${{ github.event.head_commit.timestamp }}
+            
+            ### Downloads
+            - **Windows**: refinify-windows-${{ steps.version.outputs.version }}.zip
+            - **Mac**: refinify-mac-${{ steps.version.outputs.version }}.zip
           draft: false
           prerelease: false
       
-      - name: Upload Release Asset
+      - name: Upload Windows Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./${{ env.ARCHIVE_NAME }}
-          asset_name: ${{ env.ARCHIVE_NAME }}
+          asset_path: ./${{ env.WINDOWS_ARCHIVE }}
+          asset_name: ${{ env.WINDOWS_ARCHIVE }}
+          asset_content_type: application/zip
+      
+      - name: Upload Mac Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./${{ env.MAC_ARCHIVE }}
+          asset_name: ${{ env.MAC_ARCHIVE }}
           asset_content_type: application/zip
