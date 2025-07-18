@@ -49,17 +49,7 @@
       
       <Directory Id="DesktopFolder" />
       
-      <Directory Id="AppDataFolder">
-        <Directory Id="MicrosoftFolder" Name="Microsoft">
-          <Directory Id="WindowsFolder" Name="Windows">
-            <Directory Id="StartMenuFolder" Name="Start Menu">
-              <Directory Id="ProgramsFolder" Name="Programs">
-                <Directory Id="StartupFolder" Name="Startup" />
-              </Directory>
-            </Directory>
-          </Directory>
-        </Directory>
-      </Directory>
+      <Directory Id="StartupFolder" />
     </Directory>
 
     <!-- Components -->
