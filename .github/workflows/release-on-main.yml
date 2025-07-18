@@ -75,20 +75,20 @@ jobs:
           # Create Windows-specific archive
           WINDOWS_ARCHIVE="refinify-windows-${{ steps.version.outputs.version }}.zip"
           
-          # Create temporary directory for Windows files
-          mkdir -p windows-release
+          # Create temporary directory structure with refinify root folder
+          mkdir -p windows-release/refinify
           
-          # Copy Windows-specific files
-          cp -r refinify-ahk windows-release/
-          cp README.md windows-release/
-          cp system-prompt-completion.md windows-release/
+          # Copy Windows-specific files into refinify folder
+          cp -r refinify-ahk windows-release/refinify/
+          cp README.md windows-release/refinify/
+          cp system-prompt-completion.md windows-release/refinify/
           
           # Copy .env-secrets files if they exist
-          find . -maxdepth 1 -name ".env-secrets*" -exec cp {} windows-release/ \; 2>/dev/null || true
+          find . -maxdepth 1 -name ".env-secrets*" -exec cp {} windows-release/refinify/ \; 2>/dev/null || true
           
           # Create Windows archive
           cd windows-release
-          zip -r "../${WINDOWS_ARCHIVE}" .
+          zip -r "../${WINDOWS_ARCHIVE}" refinify/
           cd ..
           
           # Clean up
@@ -102,20 +102,20 @@ jobs:
           # Create Mac-specific archive
           MAC_ARCHIVE="refinify-mac-${{ steps.version.outputs.version }}.zip"
           
-          # Create temporary directory for Mac files
-          mkdir -p mac-release
+          # Create temporary directory structure with refinify root folder
+          mkdir -p mac-release/refinify
           
-          # Copy Mac-specific files
-          cp -r refinify-hammerspoon mac-release/
-          cp README.md mac-release/
-          cp system-prompt-completion.md mac-release/
+          # Copy Mac-specific files into refinify folder
+          cp -r refinify-hammerspoon mac-release/refinify/
+          cp README.md mac-release/refinify/
+          cp system-prompt-completion.md mac-release/refinify/
           
           # Copy .env-secrets files if they exist
-          find . -maxdepth 1 -name ".env-secrets*" -exec cp {} mac-release/ \; 2>/dev/null || true
+          find . -maxdepth 1 -name ".env-secrets*" -exec cp {} mac-release/refinify/ \; 2>/dev/null || true
           
           # Create Mac archive
           cd mac-release
-          zip -r "../${MAC_ARCHIVE}" .
+          zip -r "../${MAC_ARCHIVE}" refinify/
           cd ..
           
           # Clean up
