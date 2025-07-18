@@ -134,16 +134,23 @@
       NOT AUTOHOTKEYV2 AND NOT AUTOHOTKEYV2_USER AND NOT AUTOHOTKEYV2EXE
     </SetProperty>
     
-    <!-- Show message if AutoHotkey is not installed -->
+    <!-- Show message and open browser if AutoHotkey is not installed -->
     <CustomAction Id="ShowAHKMessage" 
                   Script="vbscript" 
                   Execute="immediate">
       <![CDATA[
       If Session.Property("AHKNOTFOUND") = "1" Then
-        MsgBox "AutoHotkey v2 is required to run Refinify." & vbCrLf & vbCrLf & _
-               "Please install it from: https://www.autohotkey.com/download/ahk-v2.exe" & vbCrLf & vbCrLf & _
-               "After installing AutoHotkey, you can run Refinify from the desktop shortcut.", _
-               vbInformation, "AutoHotkey v2 Required"
+        Dim result
+        result = MsgBox("AutoHotkey v2 is required to run Refinify." & vbCrLf & vbCrLf & _
+                        "Would you like to open the download page now?" & vbCrLf & vbCrLf & _
+                        "After installing AutoHotkey, you can run Refinify from the desktop shortcut.", _
+                        vbYesNo + vbInformation, "AutoHotkey v2 Required")
+        
+        If result = vbYes Then
+          Dim objShell
+          Set objShell = CreateObject("WScript.Shell")
+          objShell.Run "https://www.autohotkey.com/download/ahk-v2.exe"
+        End If
       End If
       ]]>
     </CustomAction>
