@@ -1,0 +1,244 @@
+name: Release on Main
+# Automated release workflow for Refinify
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag_name: ${{ steps.version.outputs.tag_name }}
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Get latest tag and determine version bump
+        id: version
+        run: |
+          # Get the latest semantic version tag (ignore timestamp-based tags)
+          LATEST_TAG=$(git tag -l "v*.*.*" | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+$" | sort -V | tail -n 1 || echo "")
+          
+          if [ -z "$LATEST_TAG" ]; then
+            LATEST_TAG="v0.0.0"
+            echo "No semantic version tags found, starting from v0.0.0"
+          else
+            echo "Latest tag: $LATEST_TAG"
+          fi
+          
+          # Extract version numbers
+          VERSION=${LATEST_TAG#v}
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          
+          # Get commit messages since last tag
+          if [ "$LATEST_TAG" = "v0.0.0" ]; then
+            COMMITS=$(git log --pretty=format:"%s" HEAD)
+          else
+            COMMITS=$(git log --pretty=format:"%s" ${LATEST_TAG}..HEAD)
+          fi
+          
+          # Determine version bump based on commit messages
+          if echo "$COMMITS" | grep -q "\[MAJOR\]"; then
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+            echo "Major version bump detected"
+          elif echo "$COMMITS" | grep -q "\[PATCH\]"; then
+            PATCH=$((PATCH + 1))
+            echo "Patch version bump detected"
+          else
+            MINOR=$((MINOR + 1))
+            PATCH=0
+            echo "Minor version bump (default)"
+          fi
+          
+          # Generate new version
+          NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "tag_name=${NEW_VERSION}" >> $GITHUB_OUTPUT
+          echo "version=${MAJOR}.${MINOR}.${PATCH}" >> $GITHUB_OUTPUT
+          echo "Generated version: ${NEW_VERSION}"
+      
+      - name: Create and push tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.version.outputs.tag_name }}" -m "Automated release for commit ${{ github.sha }}"
+          git push origin "${{ steps.version.outputs.tag_name }}"
+      
+      - name: Create Windows artifact
+        run: |
+          # Create Windows-specific archive
+          WINDOWS_ARCHIVE="refinify-windows-${{ steps.version.outputs.version }}.zip"
+          
+          # Create temporary directory structure with refinify root folder
+          mkdir -p windows-release/refinify
+          
+          # Copy Windows-specific files into refinify folder
+          cp -r refinify-ahk windows-release/refinify/
+          cp README.md windows-release/refinify/
+          cp system-prompt-completion.md windows-release/refinify/
+          
+          # Copy .env-secrets files if they exist
+          find . -maxdepth 1 -name ".env-secrets*" -exec cp {} windows-release/refinify/ \; 2>/dev/null || true
+          
+          # Create Windows archive
+          cd windows-release
+          zip -r "../${WINDOWS_ARCHIVE}" refinify/
+          cd ..
+          
+          # Clean up
+          rm -rf windows-release
+          
+          echo "WINDOWS_ARCHIVE=${WINDOWS_ARCHIVE}" >> $GITHUB_ENV
+          echo "Created Windows archive: ${WINDOWS_ARCHIVE}"
+      
+      - name: Create Mac artifact
+        run: |
+          # Create Mac-specific archive
+          MAC_ARCHIVE="refinify-mac-${{ steps.version.outputs.version }}.zip"
+          
+          # Create temporary directory structure with refinify root folder
+          mkdir -p mac-release/refinify
+          
+          # Copy Mac-specific files into refinify folder
+          cp -r refinify-hammerspoon mac-release/refinify/
+          cp README.md mac-release/refinify/
+          cp system-prompt-completion.md mac-release/refinify/
+          
+          # Copy .env-secrets files if they exist
+          find . -maxdepth 1 -name ".env-secrets*" -exec cp {} mac-release/refinify/ \; 2>/dev/null || true
+          
+          # Create Mac archive
+          cd mac-release
+          zip -r "../${MAC_ARCHIVE}" refinify/
+          cd ..
+          
+          # Clean up
+          rm -rf mac-release
+          
+          echo "MAC_ARCHIVE=${MAC_ARCHIVE}" >> $GITHUB_ENV
+          echo "Created Mac archive: ${MAC_ARCHIVE}"
+      
+      
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.version.outputs.tag_name }}
+          release_name: Release ${{ steps.version.outputs.version }}
+          body: |
+            ## Release ${{ steps.version.outputs.version }}
+            
+            **Commit**: ${{ github.event.head_commit.message }}
+            **Author**: ${{ github.event.head_commit.author.name }}
+            **Timestamp**: ${{ github.event.head_commit.timestamp }}
+            
+            ### Downloads
+            
+            #### Installers (Recommended)
+            - **Windows Installer**: refinify-windows-${{ steps.version.outputs.version }}-installer.msi
+            - **Mac Installer**: refinify-mac-${{ steps.version.outputs.version }}-installer.dmg
+            
+            #### Portable Archives
+            - **Windows Archive**: refinify-windows-${{ steps.version.outputs.version }}.zip
+            - **Mac Archive**: refinify-mac-${{ steps.version.outputs.version }}.zip
+          draft: false
+          prerelease: false
+      
+      - name: Upload Windows Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./${{ env.WINDOWS_ARCHIVE }}
+          asset_name: ${{ env.WINDOWS_ARCHIVE }}
+          asset_content_type: application/zip
+      
+      - name: Upload Mac Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./${{ env.MAC_ARCHIVE }}
+          asset_name: ${{ env.MAC_ARCHIVE }}
+          asset_content_type: application/zip
+  
+  build-windows-installer:
+    needs: create-release
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install WiX v3 Toolset
+        run: |
+          # Download and install WiX v3
+          Invoke-WebRequest -Uri https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip -OutFile wix.zip
+          Expand-Archive -Path wix.zip -DestinationPath "$env:USERPROFILE\wix"
+          echo "$env:USERPROFILE\wix" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      
+      - name: Build Windows MSI Installer
+        run: |
+          cd installers/windows
+          $version = "${{ needs.create-release.outputs.version }}"
+          & candle refinify.wxs "-dVersion=$version"
+          & light refinify.wixobj -ext WixUIExtension -ext WixUtilExtension -o "refinify-windows-$version-installer.msi"
+          cd ../..
+      
+      - name: Upload Windows Installer
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./installers/windows/refinify-windows-${{ needs.create-release.outputs.version }}-installer.msi
+          asset_name: refinify-windows-${{ needs.create-release.outputs.version }}-installer.msi
+          asset_content_type: application/x-msi
+  
+  build-mac-installer:
+    needs: create-release
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Build Mac App
+        run: |
+          cd installers/mac
+          chmod +x build-mac-app.sh
+          ./build-mac-app.sh ${{ needs.create-release.outputs.version }}
+      
+      - name: Install create-dmg
+        run: npm install -g create-dmg
+      
+      - name: Create DMG
+        run: |
+          cd installers/mac
+          create-dmg Refinify.app . || true
+          mv Refinify*.dmg refinify-mac-${{ needs.create-release.outputs.version }}-installer.dmg
+      
+      - name: Upload Mac Installer
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./installers/mac/refinify-mac-${{ needs.create-release.outputs.version }}-installer.dmg
+          asset_name: refinify-mac-${{ needs.create-release.outputs.version }}-installer.dmg
+          asset_content_type: application/x-apple-diskimage
