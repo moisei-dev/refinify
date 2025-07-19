@@ -134,7 +134,7 @@
       NOT AUTOHOTKEYV2 AND NOT AUTOHOTKEYV2_USER AND NOT AUTOHOTKEYV2EXE
     </SetProperty>
     
-    <!-- Show message and open browser if AutoHotkey is not installed -->
+    <!-- Download and install AutoHotkey if not installed -->
     <CustomAction Id="ShowAHKMessage" 
                   Script="vbscript" 
                   Execute="immediate">
@@ -142,14 +142,47 @@
       If Session.Property("AHKNOTFOUND") = "1" Then
         Dim result
         result = MsgBox("AutoHotkey v2 is required to run Refinify." & vbCrLf & vbCrLf & _
-                        "Would you like to open the download page now?" & vbCrLf & vbCrLf & _
-                        "After installing AutoHotkey, you can run Refinify from the desktop shortcut.", _
+                        "Would you like to download and install it now?", _
                         vbYesNo + vbInformation, "AutoHotkey v2 Required")
         
         If result = vbYes Then
-          Dim objShell
+          Dim objShell, objHTTP, objStream, objFSO
+          Dim strTempPath, strAHKUrl
+          
           Set objShell = CreateObject("WScript.Shell")
-          objShell.Run "https://www.autohotkey.com/download/ahk-v2.exe"
+          Set objFSO = CreateObject("Scripting.FileSystemObject")
+          
+          strAHKUrl = "https://www.autohotkey.com/download/ahk-v2.exe"
+          strTempPath = objShell.ExpandEnvironmentStrings("%TEMP%") & "\AutoHotkey_v2_setup.exe"
+          
+          ' Download AutoHotkey installer
+          Set objHTTP = CreateObject("MSXML2.XMLHTTP")
+          objHTTP.Open "GET", strAHKUrl, False
+          objHTTP.Send
+          
+          If objHTTP.Status = 200 Then
+            Set objStream = CreateObject("ADODB.Stream")
+            objStream.Open
+            objStream.Type = 1 ' Binary
+            objStream.Write objHTTP.ResponseBody
+            objStream.SaveToFile strTempPath, 2 ' Overwrite
+            objStream.Close
+            
+            ' Run the installer silently
+            MsgBox "Downloading AutoHotkey v2... This may take a moment.", vbInformation, "Downloading"
+            objShell.Run """" & strTempPath & """ /S", 1, True
+            
+            ' Clean up
+            If objFSO.FileExists(strTempPath) Then
+              objFSO.DeleteFile strTempPath
+            End If
+            
+            MsgBox "AutoHotkey v2 has been installed successfully!" & vbCrLf & vbCrLf & _
+                   "You can now run Refinify from the desktop shortcut.", vbInformation, "Installation Complete"
+          Else
+            MsgBox "Failed to download AutoHotkey v2. Please install it manually from:" & vbCrLf & _
+                   "https://www.autohotkey.com", vbExclamation, "Download Failed"
+          End If
         End If
       End If
       ]]>
