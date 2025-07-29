@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# Get the directory where the app is installed
+APP_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+RESOURCES_DIR="$APP_DIR/Contents/Resources"
+
+# Check if this is first run
+if [ ! -f "$HOME/.refinify-installed" ]; then
+    # Run setup script
+    osascript -e 'display dialog "Refinify will now set up Hammerspoon integration.\n\nThis will:\n1. Check if Hammerspoon is installed\n2. Create necessary symlinks\n3. Configure Hammerspoon to load Refinify\n\nClick OK to continue." buttons {"OK", "Cancel"} default button "OK"'
+    
+    if [ $? -eq 0 ]; then
+        "$RESOURCES_DIR/setup-hammerspoon.sh"
+        touch "$HOME/.refinify-installed"
+    fi
+fi
+
+# Open configuration dialog
+osascript -e 'display dialog "Refinify is installed!\n\nPress ⌘⌥K in any text field to configure your API key.\nPress ⌘⌥P to replace text with refined version.\nPress ⌘⌥R to append refined text.\n\nRefer to the README for more information." buttons {"OK"} default button "OK"'
