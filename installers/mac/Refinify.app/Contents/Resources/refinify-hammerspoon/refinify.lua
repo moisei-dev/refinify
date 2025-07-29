@@ -28,8 +28,21 @@ config.CUSTOM_COMPLETION_URL = ""
 function config.loadSystemPrompt()
     local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)")
     local promptFile = scriptDir .. "../system-prompt-completion.md"
-
+    
+    -- Try the relative path first
     local file = io.open(promptFile, "r")
+    
+    -- If not found, try in the app bundle Resources directory
+    if not file then
+        promptFile = scriptDir .. "system-prompt-completion.md"
+        file = io.open(promptFile, "r")
+    end
+    
+    -- If still not found, return a default prompt
+    if not file then
+        return "You are a helpful assistant that refines and improves text clarity and grammar."
+    end
+    
     local content = file:read("*all")
     file:close()
 
@@ -41,6 +54,13 @@ function config.loadConfigurationFromFile()
     local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)")
     local envFile = scriptDir .. "../.env-secrets"
     local file = io.open(envFile, "r")
+    
+    -- If not found, try in the same directory (for app bundle)
+    if not file then
+        envFile = scriptDir .. ".env-secrets"
+        file = io.open(envFile, "r")
+    end
+    
     if not file then
         return ""
     end
