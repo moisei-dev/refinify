@@ -40,12 +40,14 @@ function config.loadSystemPrompt()
     
     -- If still not found, return a default prompt
     if not file then
+        print("Refinify: Using default system prompt (file not found)")
         return "You are a helpful assistant that refines and improves text clarity and grammar."
     end
     
     local content = file:read("*all")
     file:close()
-
+    
+    print("Refinify: Loaded system prompt from " .. promptFile .. " (" .. string.len(content) .. " bytes)")
     return content
 end
 
@@ -189,12 +191,7 @@ function openai.constructPayload(userMessage)
         messages = {
             {
                 role = "system",
-                content = {
-                    {
-                        type = "text",
-                        text = config.loadSystemPrompt()
-                    }
-                }
+                content = config.loadSystemPrompt()
             },
             {
                 role = "user",
