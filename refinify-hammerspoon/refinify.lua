@@ -1,15 +1,14 @@
 -- Refinify for Hammerspoon - All-in-one version
 -- Equivalent functionality to refinify-generic.ahk
---
--- Installation:
--- 1. Clone repo: git clone https://github.com/your-username/refinify.git ~/refinify
--- 2. Link file: ln -s ~/refinify/refinify-hammerspoon/refinify.lua ~/.hammerspoon/refinify.lua
--- 3. Add to ~/.hammerspoon/init.lua: require("refinify")
--- 4. Create ~/.hammerspoon/.env-secrets with: OPENAI_API_KEY=your_key_here
 
 -- ============================================================================
 -- CONFIGURATION
 -- ============================================================================
+
+
+local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)")
+local envFile = scriptDir .. ".env-secrets"
+local promptFile = scriptDir .. "system-prompt-completion.md"
 
 local config = {}
 
@@ -26,43 +25,20 @@ config.CUSTOM_COMPLETION_URL = ""
 
 -- Load system prompt from file
 function config.loadSystemPrompt()
-    local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)")
-    local promptFile = scriptDir .. "../system-prompt-completion.md"
-    
-    -- Try the relative path first
     local file = io.open(promptFile, "r")
-    
-    -- If not found, try in the app bundle Resources directory
-    if not file then
-        promptFile = scriptDir .. "system-prompt-completion.md"
-        file = io.open(promptFile, "r")
-    end
-    
-    -- If still not found, return a default prompt
     if not file then
         print("Refinify: Using default system prompt (file not found)")
         return "You are a helpful assistant that refines and improves text clarity and grammar."
     end
-    
     local content = file:read("*all")
     file:close()
-    
     print("Refinify: Loaded system prompt from " .. promptFile .. " (" .. string.len(content) .. " bytes)")
     return content
 end
 
 -- Read configuration from .env-secrets file (equivalent to LoadConfigurationFromFile function)
 function config.loadConfigurationFromFile()
-    local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)")
-    local envFile = scriptDir .. "../.env-secrets"
     local file = io.open(envFile, "r")
-    
-    -- If not found, try in the same directory (for app bundle)
-    if not file then
-        envFile = scriptDir .. ".env-secrets"
-        file = io.open(envFile, "r")
-    end
-    
     if not file then
         return ""
     end
@@ -106,8 +82,6 @@ end
 -- LoadConfiguration function (equivalent to Windows AutoHotkey version)
 -- Checks if config file exists and API key is not empty, otherwise shows config dialog
 function LoadConfiguration()
-    local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)")
-    local envFile = scriptDir .. "../.env-secrets"
     local file = io.open(envFile, "r")
     if file then
         file:close()
@@ -373,7 +347,7 @@ end
 function showConfigDialog()
     -- Load current configuration
     local currentApiKey = config.readAPIKey() or ""
-    
+
     -- Create a comprehensive configuration dialog similar to Windows AHK
     local configChoices = {
         "API Key: " .. (currentApiKey ~= "" and string.sub(currentApiKey, 1, 1) .. "xxx" .. string.sub(currentApiKey, -1) or "Not set"),
@@ -389,13 +363,13 @@ function showConfigDialog()
         "Edit Configuration",
         "Cancel"
     }
-    
+
     -- Create a chooser for configuration options
     local chooser = hs.chooser.new(function(selected)
         if not selected then
             return false
         end
-        
+
         local choice = selected.index
         if choice == 11 then -- "Edit Configuration"
             showDetailedConfigDialog()
@@ -405,10 +379,10 @@ function showConfigDialog()
             -- Show current value for selected option
             local optionNames = {"API Key", "Endpoint", "API Version", "Model", "Max Tokens", "Temperature", "Top P", "Frequency Penalty", "Presence Penalty", "Custom URL"}
             local currentValues = {currentApiKey, config.OPENAI_ENDPOINT, config.OPENAI_API_VERSION, config.OPENAI_MODEL, tostring(config.MAX_TOKENS), string.format("%.2f", config.TEMPERATURE), string.format("%.2f", config.TOP_P), string.format("%.1f", config.FREQUENCY_PENALTY), string.format("%.1f", config.PRESENCE_PENALTY), config.CUSTOM_COMPLETION_URL}
-            
+
             local button2, result = hs.dialog.textPrompt("Edit " .. optionNames[choice],
                 "Current value: " .. currentValues[choice] .. "\nEnter new value:", currentValues[choice], "Save", "Cancel")
-            
+
             if button2 == "Save" and result ~= "" then
                 -- Update configuration
                 if choice == 1 then -- API Key
@@ -432,23 +406,23 @@ function showConfigDialog()
                 elseif choice == 10 then -- Custom URL
                     config.CUSTOM_COMPLETION_URL = result
                 end
-                
+
                 saveConfiguration()
                 return true
             end
         end
     end)
-    
+
     -- Populate chooser with configuration choices
     local choices = {}
     for i, choice in ipairs(configChoices) do
         table.insert(choices, {text = choice, index = i})
     end
-    
+
     chooser:choices(choices)
     chooser:placeholderText("Select configuration option")
     chooser:show()
-    
+
     return true
 end
 
@@ -456,7 +430,7 @@ end
 function updateConfigValue(choice, newValue)
     local optionNames = {"OPENAI_API_KEY", "OPENAI_ENDPOINT", "OPENAI_API_VERSION", "OPENAI_MODEL", "MAX_TOKENS", "TEMPERATURE", "TOP_P", "FREQUENCY_PENALTY", "PRESENCE_PENALTY", "CUSTOM_COMPLETION_URL"}
     local optionName = optionNames[choice]
-    
+
     -- Validate numeric values
     if choice >= 5 and choice <= 9 then
         local numValue = tonumber(newValue)
@@ -466,7 +440,7 @@ function updateConfigValue(choice, newValue)
         end
         newValue = tostring(numValue)
     end
-    
+
     -- Update the config
     if optionName == "OPENAI_API_KEY" then
         config.OPENAI_API_KEY = newValue
@@ -489,7 +463,7 @@ function updateConfigValue(choice, newValue)
     elseif optionName == "CUSTOM_COMPLETION_URL" then
         config.CUSTOM_COMPLETION_URL = newValue
     end
-    
+
     -- Save configuration
     return saveConfiguration()
 end
@@ -497,10 +471,10 @@ end
 -- Detailed configuration dialog similar to Windows AHK
 function showDetailedConfigDialog()
     local currentApiKey = config.readAPIKey() or ""
-    
+
     -- Create a multi-step configuration process
     local steps = {
-        {title = "API Configuration", 
+        {title = "API Configuration",
          fields = {
              {name = "OPENAI_API_KEY", label = "[Mandatory] API Key:", value = currentApiKey, password = true},
              {name = "OPENAI_ENDPOINT", label = "[Mandatory] Endpoint URL:", value = config.OPENAI_ENDPOINT},
@@ -517,22 +491,22 @@ function showDetailedConfigDialog()
              {name = "PRESENCE_PENALTY", label = "Presence Penalty:", value = string.format("%.1f", config.PRESENCE_PENALTY)}
          }}
     }
-    
+
     local currentStep = 1
-    
+
     local function showStep(stepIndex)
         if stepIndex > #steps then
             -- All steps completed, save configuration
             saveConfiguration()
             return
         end
-        
+
         local step = steps[stepIndex]
         local choices = {"Next", "Previous", "Cancel"}
         if stepIndex == #steps then
             choices = {"Save", "Previous", "Cancel"}
         end
-        
+
         local fieldChoices = {}
         for i, field in ipairs(step.fields) do
             local displayValue = field.value
@@ -541,16 +515,16 @@ function showDetailedConfigDialog()
             end
             table.insert(fieldChoices, field.label .. " " .. displayValue)
         end
-        
+
         local button, choice = hs.dialog.chooseFromList(fieldChoices, step.title, table.concat(choices, ", "))
-        
+
         if button == "OK" and choice then
             if choice <= #step.fields then
                 -- Edit field
                 local field = step.fields[choice]
                 local button2, result = hs.dialog.textPrompt("Edit " .. field.label,
                     "Enter new value:", field.value, "OK", "Cancel")
-                
+
                 if button2 == "OK" and result then
                     -- Update the field value
                     field.value = result
@@ -590,15 +564,12 @@ function showDetailedConfigDialog()
             end
         end
     end
-    
+
     showStep(1)
 end
 
 -- Save configuration with backup (equivalent to ConfigSave in Windows AHK)
 function saveConfiguration()
-    local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)")
-    local envFile = scriptDir .. "../.env-secrets"
-    
     -- Create backup (equivalent to Windows FileCopy)
     local backupFile = envFile .. ".bak"
     local backupExists = io.open(envFile, "r")
@@ -611,7 +582,7 @@ function saveConfiguration()
             backupWrite:close()
         end
     end
-    
+
     -- Save new configuration
     local file = io.open(envFile, "w")
     if file then
@@ -657,8 +628,6 @@ function refinify.init()
 
     -- Cmd+Alt+K: Show configuration dialog (equivalent to ^!k::)
     hs.hotkey.bind({"cmd", "alt"}, "K", function()
-        local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)")
-        local envFile = scriptDir .. "../.env-secrets"
         local file = io.open(envFile, "r")
         if not file then
             -- Create empty config file if it doesn't exist
