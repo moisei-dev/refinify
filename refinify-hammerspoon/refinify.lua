@@ -1,11 +1,5 @@
 -- Refinify for Hammerspoon - All-in-one version
 -- Equivalent functionality to refinify-generic.ahk
---
--- Installation:
--- 1. Clone repo: git clone https://github.com/your-username/refinify.git ~/refinify
--- 2. Link file: ln -s ~/refinify/refinify-hammerspoon/refinify.lua ~/.hammerspoon/refinify.lua
--- 3. Add to ~/.hammerspoon/init.lua: require("refinify")
--- 4. Create ~/.hammerspoon/.env-secrets with: OPENAI_API_KEY=your_key_here
 
 -- ============================================================================
 -- CONFIGURATION
@@ -27,26 +21,17 @@ config.CUSTOM_COMPLETION_URL = ""
 -- Load system prompt from file
 function config.loadSystemPrompt()
     local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)")
-    local promptFile = scriptDir .. "../system-prompt-completion.md"
-    
-    -- Try the relative path first
+    local promptFile = scriptDir .. "system-prompt-completion.md"
+
     local file = io.open(promptFile, "r")
-    
-    -- If not found, try in the app bundle Resources directory
-    if not file then
-        promptFile = scriptDir .. "system-prompt-completion.md"
-        file = io.open(promptFile, "r")
-    end
-    
-    -- If still not found, return a default prompt
     if not file then
         print("Refinify: Using default system prompt (file not found)")
         return "You are a helpful assistant that refines and improves text clarity and grammar."
     end
-    
+
     local content = file:read("*all")
     file:close()
-    
+
     print("Refinify: Loaded system prompt from " .. promptFile .. " (" .. string.len(content) .. " bytes)")
     return content
 end
@@ -54,15 +39,8 @@ end
 -- Read configuration from .env-secrets file (equivalent to LoadConfigurationFromFile function)
 function config.loadConfigurationFromFile()
     local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)")
-    local envFile = scriptDir .. "../.env-secrets"
+    local envFile = scriptDir .. ".env-secrets"
     local file = io.open(envFile, "r")
-    
-    -- If not found, try in the same directory (for app bundle)
-    if not file then
-        envFile = scriptDir .. ".env-secrets"
-        file = io.open(envFile, "r")
-    end
-    
     if not file then
         return ""
     end
@@ -107,7 +85,7 @@ end
 -- Checks if config file exists and API key is not empty, otherwise shows config dialog
 function LoadConfiguration()
     local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)")
-    local envFile = scriptDir .. "../.env-secrets"
+    local envFile = scriptDir .. ".env-secrets"
     local file = io.open(envFile, "r")
     if file then
         file:close()
@@ -597,7 +575,7 @@ end
 -- Save configuration with backup (equivalent to ConfigSave in Windows AHK)
 function saveConfiguration()
     local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)")
-    local envFile = scriptDir .. "../.env-secrets"
+    local envFile = scriptDir .. ".env-secrets"
     
     -- Create backup (equivalent to Windows FileCopy)
     local backupFile = envFile .. ".bak"
@@ -658,7 +636,7 @@ function refinify.init()
     -- Cmd+Alt+K: Show configuration dialog (equivalent to ^!k::)
     hs.hotkey.bind({"cmd", "alt"}, "K", function()
         local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)")
-        local envFile = scriptDir .. "../.env-secrets"
+        local envFile = scriptDir .. ".env-secrets"
         local file = io.open(envFile, "r")
         if not file then
             -- Create empty config file if it doesn't exist
