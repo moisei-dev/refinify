@@ -46,22 +46,40 @@ Download the latest release for your platform from the [GitHub Releases page](ht
 
 **Dependency**: Refinify for macOS runs on top of [Hammerspoon](https://www.hammerspoon.org) (a free, open-source macOS automation tool) — it's what provides the system-wide keyboard shortcuts. You don't need to install it yourself beforehand: if it's missing, the installer detects this and offers to install it for you via Homebrew (installing Homebrew first if needed) before continuing setup.
 
-#### Option 1: Installer (Recommended)
+#### Option 1: Homebrew (Recommended)
+```bash
+brew tap moisei-dev/refinify
+brew install --cask refinify
+```
+This one command downloads the latest release, installs `Refinify.app` into `/Applications`, clears the Gatekeeper quarantine flag so it opens without any "Not Opened"/security prompts, and automatically runs the full first-run setup (installs Hammerspoon if needed, waits for it to be ready, creates the necessary symlinks, seeds your configuration at `~/.config/refinify/`, and walks you through granting Accessibility permission). No need to separately open the app from Finder afterward.
+
+Run it from a normal Terminal session (not over SSH) — setup shows a few confirmation dialogs, including one to grant Accessibility access.
+
+Once installed, press `⌘⌥K` to open the configuration dialog, enter your OpenAI API key and settings, and click "Save". To update later: `brew upgrade --cask refinify`.
+
+#### Option 2: DMG Installer
+For anyone who prefers not to use Homebrew, or wants to install without Terminal:
+
 1. **Download** `refinify-mac-X.X.X-installer.dmg` from the [latest release](https://github.com/moisei-dev/refinify/releases/latest)
-2. **Install the app**:
-   - Open the DMG file
-   - Drag Refinify.app to Applications folder
-   - Launch Refinify from Applications
-3. **First run setup**:
-   - The app will check for Hammerspoon and offer to install it if needed, and wait for it to finish starting up
-   - It will automatically create the necessary symlinks and seed your configuration at `~/.config/refinify/` (no manual file copying needed)
-   - You'll be prompted to grant Hammerspoon accessibility permissions — do this, then confirm in the dialog
-4. **Configure API Key**:
+2. **Open the DMG** — double-click the downloaded file to mount it; a Finder window appears showing the Refinify icon and an Applications shortcut
+3. **Install**: drag the Refinify icon onto the Applications shortcut, then eject the DMG (right-click its icon in Finder's sidebar → Eject)
+4. **Launch the app**: open Finder → Applications → double-click **Refinify**
+   - Refinify isn't notarized/code-signed by Apple, so macOS Gatekeeper will likely show a **"Refinify" Not Opened** dialog the first time, with no "Open Anyway" button. If you see this:
+     - Open **System Settings → Privacy & Security**
+     - Scroll down to the message "Refinify was blocked to protect your Mac" and click **Open Anyway**
+     - Enter your Mac password/Touch ID if prompted
+     - Go back to Applications and double-click Refinify again — it will now launch
+5. **Let first-run setup finish**: after Refinify opens, it will:
+   - Check whether Hammerspoon is installed, and offer to install it via Homebrew if not (accept the prompt) — this can take a minute
+   - Automatically create the symlink into `~/.hammerspoon/` and seed your configuration at `~/.config/refinify/` (no manual file copying needed)
+   - Show a dialog asking you to grant Accessibility access — click **Open Settings**, then in **System Settings → Privacy & Security → Accessibility**, enable the toggle next to **Hammerspoon**, then return to the dialog and click **Done**
+   - Show a final **"Setup complete!"** dialog once hotkeys are live
+6. **Configure API Key**:
    - Press `⌘⌥K` to open the configuration dialog
    - Enter your OpenAI API key and settings
    - Click "Save"
 
-#### Option 2: Portable Archive (advanced/manual)
+#### Option 3: Portable Archive (advanced/manual)
 1. **Download** `refinify-mac-X.X.X.zip` from the [latest release](https://github.com/moisei-dev/refinify/releases/latest)
 2. **Extract** it anywhere (e.g. `~/refinify-src/`) — this is just source, not the runtime location
 3. **Install Hammerspoon**: `brew install --cask hammerspoon`
@@ -128,8 +146,8 @@ Both platforms require an API key configuration file and provide configuration t
 
 The project includes pre-configured templates for different OpenAI setups: `refinify-secrets-openai.template` and `refinify-secrets-corporate.template`.
 
-- **macOS (installer)**: Not needed — the installer automatically seeds `~/.config/refinify/refinify-secrets` from the standard OpenAI template on first run. Just edit that file (or use the configuration dialog) to add your credentials. If you want the corporate/Azure template instead, copy `refinify-secrets-corporate.template` over `~/.config/refinify/refinify-secrets`.
-- **macOS (portable archive)**: Copy the template you want to `~/.config/refinify/refinify-secrets` (see Option 2 above) and fill in your credentials.
+- **macOS (Homebrew or DMG)**: Not needed — setup automatically seeds `~/.config/refinify/refinify-secrets` from the standard OpenAI template on first run. Just edit that file (or use the configuration dialog) to add your credentials. If you want the corporate/Azure template instead, copy `refinify-secrets-corporate.template` over `~/.config/refinify/refinify-secrets`.
+- **macOS (portable archive)**: Copy the template you want to `~/.config/refinify/refinify-secrets` (see Option 3 above) and fill in your credentials.
 - **Windows**: Copy the appropriate template to `.env-secrets` in the project root and fill in your credentials:
   ```bash
   cp refinify-secrets-openai.template .env-secrets
