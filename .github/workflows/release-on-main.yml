@@ -113,11 +113,8 @@ jobs:
           # Copy Mac-specific files into refinify folder
           cp -r refinify-hammerspoon mac-release/refinify/
           cp README.md mac-release/refinify/
-          cp system-prompt-completion.md mac-release/refinify/
-          
-          # Copy .env-secrets files if they exist
-          find . -maxdepth 1 -name ".env-secrets*" -exec cp {} mac-release/refinify/ \; 2>/dev/null || true
-          
+          cp system-prompt-completion.md mac-release/refinify/refinify-system-prompt-default.md
+
           # Create Mac archive
           cd mac-release
           zip -r "../${MAC_ARCHIVE}" refinify/

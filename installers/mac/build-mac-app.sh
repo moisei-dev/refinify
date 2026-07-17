@@ -76,9 +76,10 @@ chmod +x "$MACOS_DIR/refinify-launcher"
 # Copy resources
 cp -r ../../refinify-hammerspoon "$RESOURCES_DIR/"
 cp ../../README.md "$RESOURCES_DIR/"
-cp ../../system-prompt-completion.md "$RESOURCES_DIR/"
-# Copy .env-secrets files if they exist
-find ../.. -maxdepth 1 -name ".env-secrets*" -exec cp {} "$RESOURCES_DIR/" \; 2>/dev/null || true
+cp ../../system-prompt-completion.md "$RESOURCES_DIR/refinify-system-prompt-default.md"
+# Copy config templates so first-run setup can seed a real default
+cp ../../refinify-secrets-openai.template "$RESOURCES_DIR/"
+cp ../../refinify-secrets-corporate.template "$RESOURCES_DIR/"
 
 # Create setup script
 cat > "$RESOURCES_DIR/setup-hammerspoon.sh" << 'EOF'
@@ -89,16 +90,26 @@ RESOURCES_DIR="$(cd "$(dirname "$0")" && pwd)"
 # Check if Hammerspoon is installed
 if ! [ -d "/Applications/Hammerspoon.app" ]; then
     osascript -e 'display dialog "Hammerspoon is not installed.\n\nWould you like to install it now using Homebrew?" buttons {"Install", "Cancel"} default button "Install"'
-    
+
     if [ $? -eq 0 ]; then
         # Check if Homebrew is installed
         if ! command -v brew &> /dev/null; then
             osascript -e 'display dialog "Homebrew is not installed. Please install Homebrew first:\n\n/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"\n\nThen run Refinify again." buttons {"OK"} default button "OK"'
             exit 1
         fi
-        
+
         # Install Hammerspoon
         brew install --cask hammerspoon
+
+        # Cask installs can lag - wait for the app bundle to actually appear
+        for i in $(seq 1 30); do
+            [ -d "/Applications/Hammerspoon.app" ] && break
+            sleep 1
+        done
+        if ! [ -d "/Applications/Hammerspoon.app" ]; then
+            osascript -e 'display dialog "Hammerspoon installation did not complete.\n\nPlease install Hammerspoon manually from https://www.hammerspoon.org and run Refinify again." buttons {"OK"} default button "OK"'
+            exit 1
+        fi
     else
         exit 1
     fi
@@ -115,8 +126,73 @@ if ! grep -q 'require("refinify")' "$HOME/.hammerspoon/init.lua" 2>/dev/null; th
     echo 'require("refinify")' >> "$HOME/.hammerspoon/init.lua"
 fi
 
-# Start Hammerspoon
+# Set up the config directory Refinify reads secrets/prompt from
+CONFIG_DIR="$HOME/.config/refinify"
+mkdir -p "$CONFIG_DIR"
+
+# Migrate legacy manual/portable install layout (~/refinify/) — checked first
+if [ -d "$HOME/refinify" ]; then
+    [ -f "$HOME/refinify/.env-secrets" ] && [ ! -f "$CONFIG_DIR/refinify-secrets" ] && \
+        cp "$HOME/refinify/.env-secrets" "$CONFIG_DIR/refinify-secrets"
+    [ -f "$HOME/refinify/system-prompt-completion.md" ] && [ ! -f "$CONFIG_DIR/refinify-system-prompt.md" ] && \
+        cp "$HOME/refinify/system-prompt-completion.md" "$CONFIG_DIR/refinify-system-prompt.md"
+    rm -rf "$HOME/refinify"
+fi
+
+# Migrate legacy files from ~/.hammerspoon (existing users of the old scheme)
+[ -f "$HOME/.hammerspoon/.env-secrets" ] && [ ! -f "$CONFIG_DIR/refinify-secrets" ] && \
+    cp "$HOME/.hammerspoon/.env-secrets" "$CONFIG_DIR/refinify-secrets"
+[ -f "$HOME/.hammerspoon/system-prompt-completion.md" ] && [ ! -f "$CONFIG_DIR/refinify-system-prompt.md" ] && \
+    cp "$HOME/.hammerspoon/system-prompt-completion.md" "$CONFIG_DIR/refinify-system-prompt.md"
+
+# Seed defaults for genuinely new installs
+[ ! -f "$CONFIG_DIR/refinify-secrets" ] && cp "$RESOURCES_DIR/refinify-secrets-openai.template" "$CONFIG_DIR/refinify-secrets"
+[ ! -f "$CONFIG_DIR/refinify-system-prompt.md" ] && cp "$RESOURCES_DIR/refinify-system-prompt-default.md" "$CONFIG_DIR/refinify-system-prompt.md"
+
+# Start Hammerspoon and wait for it to actually be running (don't assume open succeeded)
 open -a Hammerspoon
+HS_RUNNING=false
+for i in $(seq 1 15); do
+    if pgrep -x Hammerspoon > /dev/null; then
+        HS_RUNNING=true
+        break
+    fi
+    sleep 1
+done
+if [ "$HS_RUNNING" = false ]; then
+    open -a Hammerspoon
+    for i in $(seq 1 15); do
+        if pgrep -x Hammerspoon > /dev/null; then
+            HS_RUNNING=true
+            break
+        fi
+        sleep 1
+    done
+fi
+if [ "$HS_RUNNING" = false ]; then
+    osascript -e 'display dialog "Hammerspoon did not start.\n\nPlease launch Hammerspoon manually from Applications, then re-open Refinify." buttons {"OK"} default button "OK"'
+    exit 1
+fi
+
+# Hammerspoon needs Accessibility access to simulate keystrokes/paste - a
+# fresh install almost never has this granted yet. Loop until the user
+# confirms it (TCC.db is usually unreadable without Full Disk Access, so we
+# can't verify this programmatically - trust the explicit confirmation).
+ACCESSIBILITY_GRANTED=false
+while [ "$ACCESSIBILITY_GRANTED" = false ]; do
+    RESPONSE=$(osascript -e 'display dialog "Refinify needs Accessibility access (via Hammerspoon) to work.\n\n1. Click \"Open Settings\" below\n2. Enable Hammerspoon under Privacy & Security > Accessibility\n3. Come back and click \"Done\"" buttons {"Open Settings", "Done"} default button "Open Settings"')
+    if [[ "$RESPONSE" == *"Open Settings"* ]]; then
+        open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+        osascript -e 'display dialog "Enable Hammerspoon in the Accessibility list, then click Done." buttons {"Done"} default button "Done"'
+        ACCESSIBILITY_GRANTED=true
+    else
+        ACCESSIBILITY_GRANTED=true
+    fi
+done
+
+# Force Hammerspoon to reload so the newly-symlinked refinify.lua takes
+# effect immediately, without requiring a manual quit/reopen.
+osascript -e 'tell application "Hammerspoon" to execute lua code "hs.reload()"' > /dev/null 2>&1
 
 osascript -e 'display dialog "Setup complete!\n\nHammerspoon has been configured with Refinify.\n\nPress ⌘⌥K to configure your API key." buttons {"OK"} default button "OK"'
 EOF

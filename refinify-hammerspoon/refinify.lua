@@ -7,10 +7,81 @@
 
 
 local scriptDir = debug.getinfo(1, "S").source:match("@?(.*/)")
-local envFile = scriptDir .. ".env-secrets"
-local promptFile = scriptDir .. "system-prompt-completion.md"
+
+local configDir = os.getenv("HOME") .. "/.config/refinify/"
+local envFile = configDir .. "refinify-secrets"
+local promptFile = configDir .. "refinify-system-prompt.md"
+
+-- Legacy locations, kept only for one-time migration of existing installs
+local legacyHomeDir = os.getenv("HOME") .. "/refinify/"
+local legacyHomeEnvFile = legacyHomeDir .. ".env-secrets"
+local legacyHomePromptFile = legacyHomeDir .. "system-prompt-completion.md"
+local legacyEnvFile = scriptDir .. ".env-secrets"
+local legacyPromptFile = scriptDir .. "system-prompt-completion.md"
+local defaultPromptFile = scriptDir .. "../refinify-system-prompt-default.md"
+
+local function fileExists(path)
+    local file = io.open(path, "r")
+    if file then
+        file:close()
+        return true
+    end
+    return false
+end
+
+local function copyFile(src, dst)
+    local input = io.open(src, "r")
+    if not input then
+        return false
+    end
+    local content = input:read("*all")
+    input:close()
+
+    local output = io.open(dst, "w")
+    if not output then
+        return false
+    end
+    output:write(content)
+    output:close()
+    return true
+end
 
 local config = {}
+
+-- Ensure the config directory and its files exist, migrating from legacy
+-- locations (~/refinify/ from old manual installs, ~/.hammerspoon/ from the
+-- old scriptDir-relative scheme) so existing users keep their configuration.
+function config.bootstrap()
+    os.execute('mkdir -p "' .. configDir .. '"')
+
+    if not fileExists(envFile) then
+        if fileExists(legacyHomeEnvFile) then
+            copyFile(legacyHomeEnvFile, envFile)
+        elseif fileExists(legacyEnvFile) then
+            copyFile(legacyEnvFile, envFile)
+        else
+            local file = io.open(envFile, "w")
+            if file then
+                file:write("# Refinify Configuration file\n")
+                file:close()
+            end
+        end
+    end
+
+    if not fileExists(promptFile) then
+        if fileExists(legacyHomePromptFile) then
+            copyFile(legacyHomePromptFile, promptFile)
+        elseif fileExists(legacyPromptFile) then
+            copyFile(legacyPromptFile, promptFile)
+        elseif fileExists(defaultPromptFile) then
+            copyFile(defaultPromptFile, promptFile)
+        end
+    end
+
+    if fileExists(legacyHomeEnvFile) or fileExists(legacyHomePromptFile) then
+        os.execute('rm -rf "' .. legacyHomeDir .. '"')
+    end
+end
 
 -- OpenAI Configuration (equivalent to AutoHotkey constants)
 config.OPENAI_ENDPOINT = "https://api.openai.com"
@@ -113,7 +184,7 @@ local openai = {}
 function openai.refineMessage(userMessage, callback)
     local apiKey = config.readAPIKey()
     if not apiKey or apiKey == "" then
-        callback(nil, "API key not found. Please create ~/.hammerspoon/.env-secrets with OPENAI_API_KEY")
+        callback(nil, "API key not found. Please create " .. envFile .. " with OPENAI_API_KEY")
         return
     end
 
@@ -613,6 +684,9 @@ end
 
 -- Initialize keyboard shortcuts and setup (equivalent to AutoHotkey hotkey definitions)
 function refinify.init()
+    -- Ensure config dir/files exist, migrating from legacy locations if needed
+    config.bootstrap()
+
     -- Load configuration on startup
     config.readAPIKey()
 

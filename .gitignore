@@ -1,6 +1,10 @@
 *.log
 .env-secrets
+refinify-secrets
 .DS_Store
+installers/mac/Refinify.app/
+installers/mac/*.zip
+installers/mac/*.dmg
 Thumbs.db
 node_modules/
 dist/

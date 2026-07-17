@@ -51,25 +51,27 @@ Download the latest release for your platform from the [GitHub Releases page](ht
    - Drag Refinify.app to Applications folder
    - Launch Refinify from Applications
 3. **First run setup**:
-   - The app will check for Hammerspoon and offer to install it if needed
-   - It will automatically create the necessary symlinks and configuration
-   - Grant accessibility permissions when prompted
+   - The app will check for Hammerspoon and offer to install it if needed, and wait for it to finish starting up
+   - It will automatically create the necessary symlinks and seed your configuration at `~/.config/refinify/` (no manual file copying needed)
+   - You'll be prompted to grant Hammerspoon accessibility permissions — do this, then confirm in the dialog
 4. **Configure API Key**:
    - Press `⌘⌥K` to open the configuration dialog
    - Enter your OpenAI API key and settings
    - Click "Save"
 
-#### Option 2: Portable Archive
+#### Option 2: Portable Archive (advanced/manual)
 1. **Download** `refinify-mac-X.X.X.zip` from the [latest release](https://github.com/moisei-dev/refinify/releases/latest)
-2. **Extract** to your home directory (`~/`)
+2. **Extract** it anywhere (e.g. `~/refinify-src/`) — this is just source, not the runtime location
 3. **Install Hammerspoon**: `brew install --cask hammerspoon`
 4. **Set up manually**:
    ```bash
-   mkdir -p ~/.hammerspoon
-   ln -s ~/refinify/refinify-hammerspoon/refinify.lua ~/.hammerspoon/refinify.lua
+   mkdir -p ~/.hammerspoon ~/.config/refinify
+   ln -s ~/refinify-src/refinify-hammerspoon/refinify.lua ~/.hammerspoon/refinify.lua
    echo 'require("refinify")' >> ~/.hammerspoon/init.lua
+   cp ~/refinify-src/refinify-secrets-openai.template ~/.config/refinify/refinify-secrets
+   cp ~/refinify-src/refinify-system-prompt-default.md ~/.config/refinify/refinify-system-prompt.md
    ```
-5. **Configure**: Launch Hammerspoon and press `⌘⌥K`
+5. **Configure**: Launch Hammerspoon, grant it accessibility permissions, and press `⌘⌥K`
 
 ## How to use Refinify
 - Place your cursor in the edit box with the text you want to refine. Slack, Gmail, etc.
@@ -122,25 +124,20 @@ Both platforms require an API key configuration file and provide configuration t
 
 #### Option 1: Use Configuration Templates
 
-The project includes pre-configured templates for different OpenAI setups. Simply copy the appropriate template to `.env-secrets` and fill in your credentials:
+The project includes pre-configured templates for different OpenAI setups: `refinify-secrets-openai.template` and `refinify-secrets-corporate.template`.
 
-**For Standard OpenAI:**
-```bash
-# Copy the standard OpenAI template
-cp .env-secrets-openai.template .env-secrets
-# Edit .env-secrets and add your API key
-```
-
-**For Corporate/Enterprise OpenAI:**
-```bash
-# Copy the corporate OpenAI template (includes preview models)
-cp .env-secrets-corporate.template .env-secrets
-# Edit .env-secrets and add your corporate OpenAI credentials
-```
+- **macOS (installer)**: Not needed — the installer automatically seeds `~/.config/refinify/refinify-secrets` from the standard OpenAI template on first run. Just edit that file (or use the configuration dialog) to add your credentials. If you want the corporate/Azure template instead, copy `refinify-secrets-corporate.template` over `~/.config/refinify/refinify-secrets`.
+- **macOS (portable archive)**: Copy the template you want to `~/.config/refinify/refinify-secrets` (see Option 2 above) and fill in your credentials.
+- **Windows**: Copy the appropriate template to `.env-secrets` in the project root and fill in your credentials:
+  ```bash
+  cp refinify-secrets-openai.template .env-secrets
+  # or: cp refinify-secrets-corporate.template .env-secrets
+  # Edit .env-secrets and add your API key
+  ```
 
 #### Option 2: Use Configuration Dialog
 
-Both platforms include a comprehensive configuration dialog accessible via **Ctrl+Alt+K** (Windows) or **⌘⌥K** (macOS). This dialog allows you to edit all configuration parameters (API key, endpoint, model, etc.), validates numeric fields, and automatically creates a backup of your previous configuration. This is the recommended method as it ensures your `.env-secrets` file is always properly formatted and up to date.
+Both platforms include a comprehensive configuration dialog accessible via **Ctrl+Alt+K** (Windows) or **⌘⌥K** (macOS). This dialog allows you to edit all configuration parameters (API key, endpoint, model, etc.), validates numeric fields, and automatically creates a backup of your previous configuration. This is the recommended method as it ensures your configuration file (`.env-secrets` on Windows, `~/.config/refinify/refinify-secrets` on macOS) is always properly formatted and up to date.
 
 
 ### Configuration Parameters
@@ -152,7 +149,7 @@ Both platforms include a comprehensive configuration dialog accessible via **Ctr
 | `OPENAI_API_VERSION` | API version | _(leave empty)_ | `2025-01-01-preview` |
 | `OPENAI_MODEL` | Model to use | `gpt-4.1` | `gpt-4.1` |
 
-**Security Note**: Never commit the `.env-secrets` file to version control. It's already included in `.gitignore`.
+**Security Note**: Never commit your secrets file to version control. Both `.env-secrets` (Windows) and `refinify-secrets` (macOS) are already included in `.gitignore`.
 
 
 ## Troubleshooting
@@ -164,19 +161,20 @@ Both platforms include a comprehensive configuration dialog accessible via **Ctr
 - **Configuration dialog appears**: If the configuration dialog shows up instead of performing refinement, it means your `.env-secrets` file is missing or the API key is empty. Configure it first, then try again.
 
 ### macOS
-- **No response**: Check that your API key is correctly set in `~/refinify/.env-secrets`
-- **Accessibility errors**: Make sure Hammerspoon has accessibility permissions in System Preferences
+- **No response**: Check that your API key is correctly set in `~/.config/refinify/refinify-secrets`
+- **Accessibility errors**: Make sure Hammerspoon has accessibility permissions in System Settings > Privacy & Security > Accessibility
 - **Module not found**: Ensure `refinify.lua` is linked and your init.lua includes `require("refinify")`
 - **API errors**: Check the Hammerspoon console for detailed error messages. If the OpenAI API call fails, a detailed error message will be shown, including your current configuration (API key, endpoint, version, and model) to help with troubleshooting.
-- **Configuration dialog appears**: If the configuration dialog shows up instead of performing refinement, it means your `.env-secrets` file is missing or the API key is empty. Configure it first, then try again.
+- **Configuration dialog appears**: If the configuration dialog shows up instead of performing refinement, it means your `refinify-secrets` file is missing or the API key is empty. Configure it first, then try again.
+- **Upgrading from an older Refinify version**: existing `~/.hammerspoon/.env-secrets` / `~/.hammerspoon/system-prompt-completion.md` (or an old manual `~/refinify/` install) are migrated automatically into `~/.config/refinify/` the first time the new version runs — no action needed.
 
 ## Project Structure
 
 ```
 refinify/
 ├── README.md                          # This file - installation and usage guide
-├── .env-secrets-openai.template       # Standard OpenAI configuration template
-├── .env-secrets-corporate.template    # Corporate OpenAI configuration template
+├── refinify-secrets-openai.template   # Standard OpenAI configuration template
+├── refinify-secrets-corporate.template # Corporate OpenAI configuration template
 ├── refinify-ahk/                      # Windows implementation
 │   ├── _JXON.ahk                      # JSON library for AutoHotkey
 │   ├── refinify-generic.ahk           # Core implementation
