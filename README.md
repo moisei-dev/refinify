@@ -44,6 +44,8 @@ Download the latest release for your platform from the [GitHub Releases page](ht
 
 ### macOS Installation
 
+**Dependency**: Refinify for macOS runs on top of [Hammerspoon](https://www.hammerspoon.org) (a free, open-source macOS automation tool) — it's what provides the system-wide keyboard shortcuts. You don't need to install it yourself beforehand: if it's missing, the installer detects this and offers to install it for you via Homebrew (installing Homebrew first if needed) before continuing setup.
+
 #### Option 1: Installer (Recommended)
 1. **Download** `refinify-mac-X.X.X-installer.dmg` from the [latest release](https://github.com/moisei-dev/refinify/releases/latest)
 2. **Install the app**:
