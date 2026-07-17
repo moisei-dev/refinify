@@ -149,7 +149,9 @@ Both platforms include a comprehensive configuration dialog accessible via **Ctr
 | `OPENAI_API_KEY` | Your API key | `sk-abc123...` | `corp-abc123...` |
 | `OPENAI_ENDPOINT` | API endpoint URL | `https://api.openai.com` | `https://company.openai.azure.com` |
 | `OPENAI_API_VERSION` | API version | _(leave empty)_ | `2025-01-01-preview` |
-| `OPENAI_MODEL` | Model to use | `gpt-4.1` | `gpt-4.1` |
+| `OPENAI_MODEL` | Model to use | `gpt-4.1` | `gpt-5.2` |
+
+**Note**: GPT-5+ deployments require `max_completion_tokens` instead of `max_tokens`; Refinify picks the right parameter automatically based on `OPENAI_MODEL`.
 
 **Security Note**: Never commit your secrets file to version control. Both `.env-secrets` (Windows) and `refinify-secrets` (macOS) are already included in `.gitignore`.
 
