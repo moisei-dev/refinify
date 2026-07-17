@@ -239,3 +239,25 @@ jobs:
           asset_path: ./installers/mac/refinify-mac-${{ needs.create-release.outputs.version }}-installer.dmg
           asset_name: refinify-mac-${{ needs.create-release.outputs.version }}-installer.dmg
           asset_content_type: application/x-apple-diskimage
+
+      - name: Update Homebrew tap cask
+        if: github.repository == 'moisei-dev/refinify'
+        env:
+          VERSION: ${{ needs.create-release.outputs.version }}
+        run: |
+          cd installers/mac
+          DMG_FILE="refinify-mac-${VERSION}-installer.dmg"
+          SHA256=$(shasum -a 256 "$DMG_FILE" | awk '{print $1}')
+
+          git clone "https://x-access-token:${{ secrets.HOMEBREW_TAP_TOKEN }}@github.com/moisei-dev/homebrew-refinify.git" tap
+          cd tap
+
+          # macOS runner ships BSD sed - '-i ""' (empty backup ext) is required, not GNU '-i'
+          sed -i '' -E "s/version \"[0-9.]+\"/version \"${VERSION}\"/" Casks/refinify.rb
+          sed -i '' -E "s/sha256 \"[a-f0-9]+\"/sha256 \"${SHA256}\"/" Casks/refinify.rb
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/refinify.rb
+          git commit -m "Update refinify cask to v${VERSION}"
+          git push origin main
