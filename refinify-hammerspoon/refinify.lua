@@ -244,10 +244,14 @@ function openai.constructPayload(userMessage)
             }
         },
         temperature = config.TEMPERATURE,
-        top_p = config.TOP_P,
         frequency_penalty = config.FREQUENCY_PENALTY,
         presence_penalty = config.PRESENCE_PENALTY
     }
+
+    -- Claude models reject requests that set both 'temperature' and 'top_p'
+    if not config.OPENAI_MODEL:match("claude") then
+        payload.top_p = config.TOP_P
+    end
 
     -- GPT-5+ deployments reject 'max_tokens' and require 'max_completion_tokens' instead
     if config.OPENAI_MODEL:match("^gpt%-([5-9]%d*)[%.%-]") or config.OPENAI_MODEL:match("^gpt%-([5-9]%d*)$") then
