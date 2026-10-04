@@ -306,6 +306,17 @@ local function setClipboard(content)
     hs.pasteboard.setContents(content)
 end
 
+-- Snapshot every representation on the clipboard (plain text, rich text, images, files...)
+-- so it can be restored exactly. getClipboard() only returns plain text and yields nil for
+-- anything else, and setContents(nil) writes the literal string "nil" to the clipboard.
+local function saveClipboard()
+    return hs.pasteboard.readAllData()
+end
+
+local function restoreClipboard(snapshot)
+    hs.pasteboard.writeAllData(snapshot or {})
+end
+
 -- Helper function to simulate keyboard shortcuts
 local function sendKeys(modifiers, key)
     hs.eventtap.keyStroke(modifiers, key)
@@ -319,7 +330,7 @@ local function replaceRefinedMessage()
     end
 
     -- Save original clipboard
-    local originalClipboard = getClipboard()
+    local originalClipboard = saveClipboard()
 
     -- Clear clipboard and copy current text
     setClipboard("")
@@ -332,7 +343,7 @@ local function replaceRefinedMessage()
 
         if not originalMessage or originalMessage == "" then
             hs.alert.show("The attempt to copy text onto the clipboard failed.")
-            setClipboard(originalClipboard)
+            restoreClipboard(originalClipboard)
             return
         end
 
@@ -349,7 +360,7 @@ local function replaceRefinedMessage()
                     "OPENAI_API_VERSION: " .. config.OPENAI_API_VERSION .. "\n" ..
                     "OPENAI_MODEL: " .. config.OPENAI_MODEL
                 hs.alert.show(errorMsg)
-                setClipboard(originalClipboard)
+                restoreClipboard(originalClipboard)
                 return
             end
 
@@ -359,7 +370,7 @@ local function replaceRefinedMessage()
 
             -- Wait for paste to complete, then restore original clipboard
             hs.timer.doAfter(0.1, function()
-                setClipboard(originalClipboard)
+                restoreClipboard(originalClipboard)
             end)
 
             hs.alert.show("Message refined!")
@@ -375,7 +386,7 @@ local function appendRefinedMessage()
     end
 
     -- Save original clipboard
-    local originalClipboard = getClipboard()
+    local originalClipboard = saveClipboard()
 
     -- Clear clipboard and copy current text
     setClipboard("")
@@ -388,7 +399,7 @@ local function appendRefinedMessage()
 
         if not originalMessage or originalMessage == "" then
             hs.alert.show("The attempt to copy text onto the clipboard failed.")
-            setClipboard(originalClipboard)
+            restoreClipboard(originalClipboard)
             return
         end
 
@@ -405,7 +416,7 @@ local function appendRefinedMessage()
                     "OPENAI_API_VERSION: " .. config.OPENAI_API_VERSION .. "\n" ..
                     "OPENAI_MODEL: " .. config.OPENAI_MODEL
                 hs.alert.show(errorMsg)
-                setClipboard(originalClipboard)
+                restoreClipboard(originalClipboard)
                 return
             end
 
@@ -416,7 +427,7 @@ local function appendRefinedMessage()
 
             -- Wait for paste to complete, then restore original clipboard
             hs.timer.doAfter(0.1, function()
-                setClipboard(originalClipboard)
+                restoreClipboard(originalClipboard)
             end)
 
             hs.alert.show("Message refined!")

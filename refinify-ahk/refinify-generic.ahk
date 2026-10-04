@@ -63,42 +63,52 @@ global CUSTOM_COMPLETION_URL := ""
 
 appendRefinedMessage() {
     originalWin := WinGetID("A")
-    originalClipboard := A_Clipboard
-    A_Clipboard := ""
-    SendInput "^a"
-    SendInput "^c"
-    if !ClipWait(2) {
-        throw Error("The attempt to copy text onto the clipboard failed.")
-    }
-    originalMessage := A_Clipboard
-    refinedMessage := refineMessage(originalMessage)
+    ; ClipboardAll keeps every format (images, files, rich text), not just plain text
+    originalClipboard := ClipboardAll()
+    try {
+        A_Clipboard := ""
+        SendInput "^a"
+        SendInput "^c"
+        if !ClipWait(2) {
+            throw Error("The attempt to copy text onto the clipboard failed.")
+        }
+        originalMessage := A_Clipboard
+        refinedMessage := refineMessage(originalMessage)
 
-    A_Clipboard := originalMessage "`n" "`n" refinedMessage "`n"
-    WinActivate(originalWin)
-    SendInput "^v"
-    ; must wait for paste to complete, there is no better way around
-    Sleep 100
-    A_Clipboard := originalClipboard
+        A_Clipboard := originalMessage "`n" "`n" refinedMessage "`n"
+        WinActivate(originalWin)
+        SendInput "^v"
+        ; must wait for paste to complete, there is no better way around
+        Sleep 100
+    } finally {
+        ; restore the user's clipboard on success and on failure alike
+        A_Clipboard := originalClipboard
+    }
 }
 
 replaceRefinedMessage() {
     originalWin := WinGetID("A")
-    originalClipboard := A_Clipboard
-    A_Clipboard := ""
-    SendInput "^a"
-    SendInput "^c"
-    if !ClipWait(2) {
-        throw Error("The attempt to copy text onto the clipboard failed.")
-    }
-    originalMessage := A_Clipboard
-    refinedMessage := refineMessage(originalMessage)
+    ; ClipboardAll keeps every format (images, files, rich text), not just plain text
+    originalClipboard := ClipboardAll()
+    try {
+        A_Clipboard := ""
+        SendInput "^a"
+        SendInput "^c"
+        if !ClipWait(2) {
+            throw Error("The attempt to copy text onto the clipboard failed.")
+        }
+        originalMessage := A_Clipboard
+        refinedMessage := refineMessage(originalMessage)
 
-    A_Clipboard := refinedMessage
-    WinActivate(originalWin)
-    SendInput "^v"
-    ; must wait for paste to complete, there is no better way around
-    Sleep 100
-    A_Clipboard := originalClipboard
+        A_Clipboard := refinedMessage
+        WinActivate(originalWin)
+        SendInput "^v"
+        ; must wait for paste to complete, there is no better way around
+        Sleep 100
+    } finally {
+        ; restore the user's clipboard on success and on failure alike
+        A_Clipboard := originalClipboard
+    }
 }
 
 refineMessage(userMessage) {
